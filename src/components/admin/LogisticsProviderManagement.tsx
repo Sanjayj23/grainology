@@ -1,6 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Truck, Plus, Edit2, Trash2, Search, MapPin, Phone, Mail } from 'lucide-react';
 import { api } from '../../lib/client';
+import {
+  buildLogisticsFilterOptions,
+  deriveLocationCombinationsFromProviders,
+  filterLogisticsProviders,
+  type LogisticsLocationCombination
+} from '../../lib/logisticsFilters';
 
 interface LogisticsProvider {
   id: string;
@@ -8,12 +14,17 @@ interface LogisticsProvider {
   mobile_number: string;
   email: string;
   address: string;
+  district?: string;
+  state?: string;
+  country?: string;
+  pincode?: string;
   is_active?: boolean;
 }
 
 export default function LogisticsProviderManagement() {
   const [providers, setProviders] = useState<LogisticsProvider[]>([]);
   const [filteredProviders, setFilteredProviders] = useState<LogisticsProvider[]>([]);
+  const [locationCombinations, setLocationCombinations] = useState<LogisticsLocationCombination[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingProvider, setEditingProvider] = useState<LogisticsProvider | null>(null);
   const [loading, setLoading] = useState(false);
@@ -21,27 +32,43 @@ export default function LogisticsProviderManagement() {
   const [success, setSuccess] = useState('');
 
   const [searchCompany, setSearchCompany] = useState('');
+  const [searchDistrict, setSearchDistrict] = useState('');
+  const [searchState, setSearchState] = useState('');
+  const [searchCountry, setSearchCountry] = useState('');
+  const [searchPincode, setSearchPincode] = useState('');
 
   const [companyName, setCompanyName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
+  const [district, setDistrict] = useState('');
+  const [state, setState] = useState('');
+  const [country, setCountry] = useState('India');
+  const [pincode, setPincode] = useState('');
 
   useEffect(() => {
     loadProviders();
   }, []);
 
   useEffect(() => {
-    if (!searchCompany.trim()) {
-      setFilteredProviders(providers);
-    } else {
-      setFilteredProviders(
-        providers.filter((p) =>
-          p.company_name.toLowerCase().includes(searchCompany.toLowerCase())
-        )
-      );
-    }
-  }, [providers, searchCompany]);
+    setFilteredProviders(
+      filterLogisticsProviders(providers, {
+        search: searchCompany,
+        district: searchDistrict,
+        state: searchState,
+        country: searchCountry,
+        pincode: searchPincode
+      })
+    );
+  }, [providers, searchCompany, searchDistrict, searchState, searchCountry, searchPincode]);
+
+  const filterOptions = useMemo(() => {
+    const combinations = locationCombinations.length > 0
+      ? locationCombinations
+      : deriveLocationCombinationsFromProviders(providers);
+
+    return buildLogisticsFilterOptions(combinations);
+  }, [locationCombinations, providers]);
 
   const loadProviders = async () => {
     const { data, error } = await api
@@ -50,8 +77,36 @@ export default function LogisticsProviderManagement() {
       .order('company_name', { ascending: true });
 
     if (!error && data) {
-      setProviders(Array.isArray(data) ? data : []);
+      const providerList = Array.isArray(data) ? data : [];
+      setProviders(providerList);
+      await loadLocationCombinations(providerList);
+    } else {
+      setProviders([]);
+      setLocationCombinations([]);
     }
+  };
+
+  const loadLocationCombinations = async (providerList: LogisticsProvider[]) => {
+    const fallbackCombinations = deriveLocationCombinationsFromProviders(providerList);
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${apiUrl}/logistics/filter-options`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch logistics filter options');
+      }
+
+      const result = await response.json();
+      if (Array.isArray(result?.combinations) && result.combinations.length > 0) {
+        setLocationCombinations(result.combinations);
+        return;
+      }
+    } catch (fetchError) {
+      console.error('Failed to load logistics filter options:', fetchError);
+    }
+
+    setLocationCombinations(fallbackCombinations);
   };
 
   const resetForm = () => {
@@ -59,6 +114,10 @@ export default function LogisticsProviderManagement() {
     setMobileNumber('');
     setEmail('');
     setAddress('');
+    setDistrict('');
+    setState('');
+    setCountry('India');
+    setPincode('');
     setEditingProvider(null);
     setShowForm(false);
     setError('');
@@ -71,6 +130,10 @@ export default function LogisticsProviderManagement() {
     setMobileNumber(provider.mobile_number);
     setEmail(provider.email || '');
     setAddress(provider.address || '');
+    setDistrict(provider.district || '');
+    setState(provider.state || '');
+    setCountry(provider.country || 'India');
+    setPincode(provider.pincode || '');
     setShowForm(true);
   };
 
@@ -92,6 +155,10 @@ export default function LogisticsProviderManagement() {
         mobile_number: mobileNumber.trim(),
         email: (email || '').trim(),
         address: address.trim(),
+        district: district.trim(),
+        state: state.trim(),
+        country: country.trim() || 'India',
+        pincode: pincode.trim(),
         is_active: true,
       };
 
@@ -137,14 +204,15 @@ export default function LogisticsProviderManagement() {
     }
   };
 
-  const list = searchCompany ? filteredProviders : providers;
+  const hasActiveFilters = [searchCompany, searchDistrict, searchState, searchCountry, searchPincode].some((value) => value.trim());
+  const list = hasActiveFilters ? filteredProviders : providers;
 
   return (
     <div className="space-y-6">
       <div className="bg-yellow-100 border-l-4 border-yellow-600 p-4">
         <h2 className="text-xl font-bold text-gray-900">7. Logistics</h2>
         <p className="text-sm text-gray-700 mt-1">
-          Logistics providers ko yahan add karein. Sirf naam, number, email aur address chahiye.
+          Logistics providers ko yahan add karein. Address ke saath district, state, country aur pincode bhi maintain karein.
         </p>
       </div>
 
@@ -172,25 +240,87 @@ export default function LogisticsProviderManagement() {
           </button>
         </div>
 
-        {/* Search - sirf company name */}
+        {/* Search */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-2 mb-3">
             <Search className="w-5 h-5 text-gray-600" />
             <h4 className="font-semibold text-gray-900">Search</h4>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Provider / Company Name</label>
-            <input
-              type="text"
-              value={searchCompany}
-              onChange={(e) => setSearchCompany(e.target.value)}
-              placeholder="Search by company name..."
-              className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Provider / Company Name</label>
+              <input
+                type="text"
+                value={searchCompany}
+                onChange={(e) => setSearchCompany(e.target.value)}
+                placeholder="Company name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+              <select
+                value={searchDistrict}
+                onChange={(e) => setSearchDistrict(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">District</option>
+                {filterOptions.districts.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <select
+                value={searchState}
+                onChange={(e) => setSearchState(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">State</option>
+                {filterOptions.states.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <select
+                value={searchCountry}
+                onChange={(e) => setSearchCountry(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Country</option>
+                {filterOptions.countries.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+              <select
+                value={searchPincode}
+                onChange={(e) => setSearchPincode(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Pincode</option>
+                {filterOptions.pincodes.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Form - sirf 4 fields */}
+        {/* Form */}
         {showForm && (
           <form onSubmit={handleSubmit} className="mb-8 p-6 bg-gray-50 rounded-lg border-2 border-green-200">
             <h4 className="text-lg font-semibold text-gray-900 mb-4">
@@ -241,6 +371,50 @@ export default function LogisticsProviderManagement() {
                   required
                   rows={2}
                   placeholder="Complete address with city and pincode"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                <input
+                  type="text"
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  placeholder="e.g. Patna"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                <input
+                  type="text"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="e.g. Bihar"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <input
+                  type="text"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="e.g. India"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+                <input
+                  type="text"
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value)}
+                  placeholder="e.g. 800001"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -298,7 +472,12 @@ export default function LogisticsProviderManagement() {
                 )}
                 <div className="flex items-start gap-2 text-gray-700">
                   <MapPin className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <span>{provider.address}</span>
+                  <div>
+                    <p>{provider.address}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {[provider.district, provider.state, provider.country, provider.pincode].filter(Boolean).join(', ') || 'Address details not added'}
+                    </p>
+                  </div>
                 </div>
               </div>
 

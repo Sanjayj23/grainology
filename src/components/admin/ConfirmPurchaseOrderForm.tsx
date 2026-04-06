@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { FileText, Save, Upload, FileSpreadsheet, Download, Map } from 'lucide-react';
+import { FileText, Save, Upload, FileSpreadsheet, Download, Map, AlertTriangle } from 'lucide-react';
 import { COMMODITY_VARIETIES } from '../../constants/commodityVarieties';
 import { fetchCommodities, fetchVarieties } from '../../lib/commodityVariety';
 import { useToastContext } from '../../contexts/ToastContext';
 import ColumnMappingDialog from './ColumnMappingDialog';
 import FileFormatRequirementsModal from './FileFormatRequirementsModal';
 import { generateSampleExcel, downloadExcelBuffer } from '../../utils/sampleExcel';
+import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 
 interface User {
   id: string;
   name: string;
+  trade_name?: string;
   email: string;
 }
 
@@ -28,6 +30,7 @@ export default function ConfirmPurchaseOrderForm() {
   const [duplicateChoice, setDuplicateChoice] = useState<{ duplicateCount: number; totalRows: number; duplicateRowNumbers: number[] } | null>(null);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<Array<Record<string, any>>>([]);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [commodities, setCommodities] = useState<string[]>(['Paddy', 'Maize', 'Wheat']);
   const [varieties, setVarieties] = useState<string[]>([]);
   const [warehouses, setWarehouses] = useState<string[]>([]);
@@ -78,12 +81,29 @@ export default function ConfirmPurchaseOrderForm() {
     'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
   ];
 
+  const getDisplayName = (customer?: User | null) => {
+    if (!customer) return '';
+    const trade = String(customer.trade_name || '').trim();
+    if (trade) return trade;
+    if (customer.name) return customer.name;
+    return customer.email || '';
+  };
+
+  const toUpperText = (value?: string | null) => String(value ?? '').trim().toUpperCase();
+
   useEffect(() => {
     fetchCustomers();
     fetchCommodities().then(setCommodities).catch(() => {
       setCommodities(['Paddy', 'Maize', 'Wheat']);
     });
   }, []);
+
+  // Keep master lists in sync without page refresh
+  useLiveRefresh(() => {
+    fetchCommodities().then(setCommodities).catch(() => {
+      setCommodities(['Paddy', 'Maize', 'Wheat']);
+    });
+  }, 30000, []);
 
   useEffect(() => {
     if (!state) {
@@ -96,6 +116,12 @@ export default function ConfirmPurchaseOrderForm() {
     fetchLocationsByState(state);
   }, [state]);
 
+  useLiveRefresh(() => {
+    if (state) {
+      fetchLocationsByState(state);
+    }
+  }, 10000, [state]);
+
   useEffect(() => {
     if (!locationId) {
       setWarehouses([]);
@@ -104,6 +130,12 @@ export default function ConfirmPurchaseOrderForm() {
     }
     fetchWarehousesByLocation(locationId);
   }, [locationId]);
+
+  useLiveRefresh(() => {
+    if (locationId) {
+      fetchWarehousesByLocation(locationId);
+    }
+  }, 10000, [locationId]);
 
   useEffect(() => {
     // Fetch varieties when commodity changes
@@ -116,6 +148,14 @@ export default function ConfirmPurchaseOrderForm() {
       setVarieties([]);
     }
   }, [commodity]);
+
+  useLiveRefresh(() => {
+    if (commodity) {
+      fetchVarieties(commodity).then(setVarieties).catch(() => {
+        setVarieties(COMMODITY_VARIETIES[commodity] || []);
+      });
+    }
+  }, 15000, [commodity]);
 
 
   useEffect(() => {
@@ -161,7 +201,7 @@ export default function ConfirmPurchaseOrderForm() {
 
       const data = await response.json();
       // Filter to show only customers (farmers, traders, etc., not admins)
-      const customerList = data.filter((user: any) => user.role !== 'admin');
+      const customerList = data.filter((user: any) => user.role !== 'admin' && String(user.approval_status || '').toLowerCase() === 'approved');
       setCustomers(customerList);
     } catch (err: any) {
       showError(err.message || 'Failed to fetch customers. Please try again.');
@@ -175,12 +215,13 @@ export default function ConfirmPurchaseOrderForm() {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const token = localStorage.getItem('auth_token');
       if (!token) return;
-      const response = await fetch(`${apiUrl}/location-master?is_active=true&state=${encodeURIComponent(stateName)}`, {
+      const response = await fetch(`${apiUrl}/location-master?is_active=true&approval_status=approved&state=${encodeURIComponent(stateName)}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
-        setLocations(data.map((l: any) => ({ id: l.id, name: l.name, state: l.state })));
+        const approvedOnly = data.filter((l: any) => String(l.approval_status || '').toLowerCase() === 'approved');
+        setLocations(approvedOnly.map((l: any) => ({ id: l.id, name: l.name, state: l.state })));
         setLocationId('');
         setWarehouseName('');
         setWarehouses([]);
@@ -198,12 +239,13 @@ export default function ConfirmPurchaseOrderForm() {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const token = localStorage.getItem('auth_token');
       if (!token) return;
-      const response = await fetch(`${apiUrl}/warehouse-master?is_active=true&location_id=${encodeURIComponent(locId)}`, {
+      const response = await fetch(`${apiUrl}/warehouse-master?is_active=true&approval_status=approved&location_id=${encodeURIComponent(locId)}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
-        setWarehouses(data.map((w: any) => w.name));
+        const approvedOnly = data.filter((w: any) => String(w.approval_status || '').toLowerCase() === 'approved');
+        setWarehouses(approvedOnly.map((w: any) => w.name));
         setWarehouseName('');
       } else {
         setWarehouses([]);
@@ -259,13 +301,13 @@ export default function ConfirmPurchaseOrderForm() {
       const orderData = {
         customer_id: customerId,
         transaction_date: transactionDate,
-        state,
+        state: toUpperText(state),
         supplier_name: supplierName,
         location: locationName,
         warehouse_name: warehouseName,
         chamber_no: chamberNo,
-        commodity,
-        variety,
+        commodity: toUpperText(commodity),
+        variety: toUpperText(variety),
         gate_pass_no: gatePassNo,
         vehicle_no: vehicleNo,
         weight_slip_no: weightSlipNo,
@@ -322,6 +364,7 @@ export default function ConfirmPurchaseOrderForm() {
   const handleBulkUpload = async (skipDuplicates: boolean) => {
     if (!uploadFile) return;
     setDuplicateChoice(null);
+    setUploadErrors([]);
     setUploading(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -342,7 +385,10 @@ export default function ConfirmPurchaseOrderForm() {
         body: formData,
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || result.message || 'Upload failed');
+      if (!response.ok) {
+        setUploadErrors(result.errors || []);
+        throw new Error(result.error || result.message || 'Upload failed');
+      }
       if (result.requiresDuplicateChoice) {
         setDuplicateChoice({
           duplicateCount: result.duplicateCount,
@@ -357,9 +403,13 @@ export default function ConfirmPurchaseOrderForm() {
         const warningMsg = result.warnings?.length ? ` (${result.warnings.length} warnings)` : '';
         showSuccess(`Successfully uploaded ${result.count} confirmed purchase orders!${dupMsg}${warningMsg}`);
       } else if (result.errors?.length && !result.count) {
-        showError(`Upload failed: ${result.errors.slice(0, 3).join(', ')}`);
+        setUploadErrors(result.errors);
+        showError(`Upload failed with ${result.errors.length} error(s). See details below.`);
       } else {
         showSuccess(`Successfully uploaded ${result.count || 0} confirmed purchase orders!`);
+      }
+      if (!result.errors || result.errors.length === 0) {
+        setUploadErrors([]);
       }
       setUploadFile(null);
       setColumnMapping({});
@@ -562,26 +612,32 @@ export default function ConfirmPurchaseOrderForm() {
 
                       // Fetch master list from API so Sample CSV always has current dropdown values (even if state was empty)
                       const [locRes, whRes, commRes, usersRes] = await Promise.all([
-                        fetch(`${apiUrl}/location-master?is_active=true`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                        fetch(`${apiUrl}/warehouse-master?is_active=true`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                        fetch(`${apiUrl}/location-master?is_active=true&approval_status=approved`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                        fetch(`${apiUrl}/warehouse-master?is_active=true&approval_status=approved`, { headers: { 'Authorization': `Bearer ${token}` } }),
                         fetch(`${apiUrl}/commodity-master?is_active=true`, { headers: { 'Authorization': `Bearer ${token}` } }),
                         fetch(`${apiUrl}/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } }),
                       ]);
-                      const locList = locRes.ok ? (await locRes.json()).map((l: any) => l.name) : ['GULABBAGH', 'BUXAR'];
-                      const whList = whRes.ok ? (await whRes.json()).map((w: any) => w.name) : warehouses.length ? warehouses : ['SATISH KUMAR WAREHOUSE', 'SIDDHASHRAM WAREHOUSE'];
+                      const locRaw = locRes.ok ? await locRes.json() : [];
+                      const whRaw = whRes.ok ? await whRes.json() : [];
+                      const locList = locRaw
+                        .filter((l: any) => String(l.approval_status || '').toLowerCase() === 'approved')
+                        .map((l: any) => l.name);
+                      const whList = whRaw
+                        .filter((w: any) => String(w.approval_status || '').toLowerCase() === 'approved')
+                        .map((w: any) => w.name);
                       const commList = commRes.ok ? (await commRes.json()).map((c: any) => c.name) : commodities.length ? commodities : ['Maize', 'Wheat'];
                       const usersData = usersRes.ok ? await usersRes.json() : [];
-                      const customerList = (usersData.length ? usersData : customers).filter((u: any) => u.role !== 'admin');
+                      const customerList = (usersData.length ? usersData : customers).filter((u: any) => u.role !== 'admin' && String(u.approval_status || '').toLowerCase() === 'approved');
 
-                      const sampleState = indianStates[0] || 'Bihar';
+                      const sampleState = toUpperText(indianStates[0] || 'Bihar');
                       const sampleLocation = locList[0] || 'GULABBAGH';
                       const sampleLocation2 = (locList[1] ?? locList[0]) || 'BUXAR';
                       const sampleWarehouse = whList[0] || 'SATISH KUMAR WAREHOUSE';
                       const sampleWarehouse2 = (whList[1] ?? whList[0]) || 'SIDDHASHRAM WAREHOUSE';
-                      const sampleCommodity1 = commList[0] || 'Maize';
-                      const sampleCommodity2 = (commList[1] ?? commList[0]) || 'Wheat';
-                      const sampleSupplier1 = customerList[0]?.name || 'FARMKEN VENTURES';
-                      const sampleSupplier2 = customerList[1]?.name || customerList[0]?.name || 'Agro Valley Trading';
+                      const sampleCommodity1 = toUpperText(commList[0] || 'Maize');
+                      const sampleCommodity2 = toUpperText((commList[1] ?? commList[0]) || 'Wheat');
+                      const sampleSupplier1 = getDisplayName(customerList[0] as User) || 'FARMKEN VENTURES';
+                      const sampleSupplier2 = getDisplayName(customerList[1] as User) || getDisplayName(customerList[0] as User) || 'Agro Valley Trading';
 
                       // Fetch varieties for sample commodities (dropdown values for those commodities)
                       let sampleVarieties1: string[] = [];
@@ -592,7 +648,7 @@ export default function ConfirmPurchaseOrderForm() {
                         });
                         if (var1Res.ok) {
                           const var1Data = await var1Res.json();
-                          sampleVarieties1 = var1Data.filter((v: any) => v.is_active).map((v: any) => v.variety_name);
+                          sampleVarieties1 = var1Data.filter((v: any) => v.is_active).map((v: any) => toUpperText(v.variety_name));
                         }
                       } catch {}
                       try {
@@ -601,12 +657,12 @@ export default function ConfirmPurchaseOrderForm() {
                         });
                         if (var2Res.ok) {
                           const var2Data = await var2Res.json();
-                          sampleVarieties2 = var2Data.filter((v: any) => v.is_active).map((v: any) => v.variety_name);
+                          sampleVarieties2 = var2Data.filter((v: any) => v.is_active).map((v: any) => toUpperText(v.variety_name));
                         }
                       } catch {}
 
-                      const finalVariety1 = sampleVarieties1[0] || 'Hybrid';
-                      const finalVariety2 = sampleVarieties2[0] || 'Dara';
+                      const finalVariety1 = toUpperText(sampleVarieties1[0] || 'Hybrid');
+                      const finalVariety2 = toUpperText(sampleVarieties2[0] || 'Dara');
 
                       // Create sample CSV matching Excel format exactly - 39 columns as per image
                       const headers = [
@@ -772,20 +828,22 @@ export default function ConfirmPurchaseOrderForm() {
                       }
                       const authHeaders = { headers: { 'Authorization': `Bearer ${token}` } };
                       const [locRes, whRes, commRes, usersRes, varietiesRes, statesRes] = await Promise.all([
-                        fetch(`${apiUrl}/location-master?is_active=true`, authHeaders),
-                        fetch(`${apiUrl}/warehouse-master?is_active=true`, authHeaders),
+                        fetch(`${apiUrl}/location-master?is_active=true&approval_status=approved`, authHeaders),
+                        fetch(`${apiUrl}/warehouse-master?is_active=true&approval_status=approved`, authHeaders),
                         fetch(`${apiUrl}/commodity-master?is_active=true`, authHeaders),
                         fetch(`${apiUrl}/admin/users`, authHeaders),
                         fetch(`${apiUrl}/variety-master`, authHeaders),
                         fetch(`${apiUrl}/weather/states`, authHeaders),
                       ]);
-                      const locData: Array<{ id: string; name: string; state: string }> = locRes.ok ? await locRes.json() : [];
-                      const whData: Array<{ id: string; name: string; location_id: string }> = whRes.ok ? await whRes.json() : [];
-                      const commList = commRes.ok ? (await commRes.json()).map((c: any) => c.name) : ['Maize', 'Wheat'];
+                      const locRaw: Array<{ id: string; name: string; state: string; approval_status?: string }> = locRes.ok ? await locRes.json() : [];
+                      const whRaw: Array<{ id: string; name: string; location_id: string; approval_status?: string }> = whRes.ok ? await whRes.json() : [];
+                      const locData = locRaw.filter((l) => String(l.approval_status || '').toLowerCase() === 'approved');
+                      const whData = whRaw.filter((w) => String(w.approval_status || '').toLowerCase() === 'approved');
+                      const commList = commRes.ok ? (await commRes.json()).map((c: any) => toUpperText(c.name)) : ['MAIZE', 'WHEAT'];
                       const usersData = usersRes.ok ? await usersRes.json() : [];
-                      const customerList = (usersData.length ? usersData : customers).filter((u: any) => u.role !== 'admin');
+                      const customerList = (usersData.length ? usersData : customers).filter((u: any) => u.role !== 'admin' && String(u.approval_status || '').toLowerCase() === 'approved');
                       const allVarietiesData = varietiesRes.ok ? await varietiesRes.json() : [];
-                      const statesList: string[] = statesRes.ok ? await statesRes.json() : indianStates;
+                      const statesList: string[] = statesRes.ok ? (await statesRes.json()).map((s: string) => toUpperText(s)) : indianStates.map((s) => toUpperText(s));
                       const locList = locData.map((l: any) => l.name);
                       const whList = whData.map((w: any) => w.name);
                       const key = (s: string) => String(s || '').replace(/\s+/g, '');
@@ -807,23 +865,25 @@ export default function ConfirmPurchaseOrderForm() {
                       const varietiesByCommodityKey: Record<string, string[]> = {};
                       for (const c of commList) varietiesByCommodityKey[key(c)] = [];
                       for (const v of (allVarietiesData as any[]).filter((x: any) => x.is_active !== false)) {
-                        const c = (v.commodity_name || '').trim() || 'Other';
+                        const c = toUpperText((v.commodity_name || '').trim() || 'Other');
                         const cKey = key(c);
                         if (!varietiesByCommodityKey[cKey]) varietiesByCommodityKey[cKey] = [];
-                        varietiesByCommodityKey[cKey].push(v.variety_name);
+                        varietiesByCommodityKey[cKey].push(toUpperText(v.variety_name));
                       }
-                      const sampleState = statesList[0] || 'Bihar';
+                      const sampleState = toUpperText(statesList[0] || 'Bihar');
                       const sampleLocation = locList[0] || 'GULABBAGH';
                       const sampleLocation2 = (locList[1] ?? locList[0]) || 'BUXAR';
                       const sampleWarehouse = whList[0] || 'SATISH KUMAR WAREHOUSE';
                       const sampleWarehouse2 = (whList[1] ?? whList[0]) || 'SIDDHASHRAM WAREHOUSE';
-                      const sampleCommodity1 = commList[0] || 'Maize';
-                      const sampleCommodity2 = (commList[1] ?? commList[0]) || 'Wheat';
-                      const sampleSupplier1 = customerList[0]?.name || 'FARMKEN VENTURES';
-                      const sampleSupplier2 = customerList[1]?.name || customerList[0]?.name || 'Agro Valley Trading';
-                      const allVarieties = (allVarietiesData as any[]).filter((x: any) => x.is_active !== false).map((x: any) => x.variety_name);
-                      const finalVariety1 = allVarieties[0] || 'Hybrid';
-                      const finalVariety2 = allVarieties[1] || allVarieties[0] || 'Dara';
+                      const sampleCommodity1 = toUpperText(commList[0] || 'Maize');
+                      const sampleCommodity2 = toUpperText((commList[1] ?? commList[0]) || 'Wheat');
+                      const sampleSupplier1 = getDisplayName(customerList[0] as User) || 'FARMKEN VENTURES';
+                      const sampleSupplier2 = getDisplayName(customerList[1] as User) || getDisplayName(customerList[0] as User) || 'Agro Valley Trading';
+                      const allVarieties = (allVarietiesData as any[])
+                        .filter((x: any) => x.is_active !== false)
+                        .map((x: any) => toUpperText(x.variety_name));
+                      const finalVariety1 = toUpperText(allVarieties[0] || 'Hybrid');
+                      const finalVariety2 = toUpperText(allVarieties[1] || allVarieties[0] || 'Dara');
                       const headers = [
                         'Date of Transaction', 'State', 'Supplier Name', 'Location', 'Warehouse Name', 'Chamber No.', 'Commodity', 'Variety',
                         'Gate Pass No.', 'Vehicle No.', 'Weight Slip No.', 'Gross Weight in MT (Vehicle + Goods)', 'Tare Weight of Vehicle', 'No. of Bags', 'Net Weight in MT', 'Rate Per MT', 'Gross Amount',
@@ -842,7 +902,7 @@ export default function ConfirmPurchaseOrderForm() {
                           locations: locList,
                           warehouses: whList,
                           commodities: commList,
-                          customers: customerList.map((c: any) => c.name),
+                          customers: customerList.map((c: any) => getDisplayName(c)),
                           states: statesList,
                           locationsByState,
                           warehousesByLocationKey,
@@ -971,6 +1031,22 @@ export default function ConfirmPurchaseOrderForm() {
               </div>
             )}
 
+            {uploadErrors.length > 0 && (
+              <div className="mt-4 border border-red-200 bg-red-50 rounded-lg">
+                <div className="px-4 py-2 font-semibold text-red-800 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Validation errors found in your file ({uploadErrors.length})
+                </div>
+                <ul className="divide-y divide-red-100 max-h-60 overflow-y-auto">
+                  {uploadErrors.map((err, idx) => (
+                    <li key={idx} className="px-4 py-2 text-sm text-red-700 bg-red-50">
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => handleBulkUpload(false)}
@@ -1006,7 +1082,7 @@ export default function ConfirmPurchaseOrderForm() {
                 onChange={(e) => {
                   const selectedCustomer = customers.find(c => c.id === e.target.value);
                   setCustomerId(e.target.value);
-                  setSupplierName(selectedCustomer ? selectedCustomer.name : '');
+                  setSupplierName(getDisplayName(selectedCustomer));
                 }}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -1014,7 +1090,7 @@ export default function ConfirmPurchaseOrderForm() {
                 <option value="">Select Supplier Name</option>
                 {customers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
-                    {customer.name} ({customer.email})
+                    {getDisplayName(customer)}{customer.name && customer.name !== getDisplayName(customer) ? ` (${customer.name})` : ''} ({customer.email})
                   </option>
                 ))}
               </select>
@@ -1042,7 +1118,7 @@ export default function ConfirmPurchaseOrderForm() {
               >
                 <option value="">Select State</option>
                 {indianStates.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>{toUpperText(s)}</option>
                 ))}
               </select>
             </div>
@@ -1109,7 +1185,7 @@ export default function ConfirmPurchaseOrderForm() {
               >
                 <option value="">Select Commodity</option>
                 {commodities.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>{toUpperText(c)}</option>
                 ))}
               </select>
             </div>
@@ -1123,7 +1199,7 @@ export default function ConfirmPurchaseOrderForm() {
               >
                 <option value="">Select Variety</option>
                 {varieties.map((v) => (
-                  <option key={v} value={v}>{v}</option>
+                  <option key={v} value={v}>{toUpperText(v)}</option>
                 ))}
               </select>
             </div>
@@ -1570,7 +1646,6 @@ export default function ConfirmPurchaseOrderForm() {
           { key: 'other_deduction_8', label: 'Other Deduction 8', required: false },
           { key: 'other_deduction_9', label: 'Other Deduction 9', required: false },
           { key: 'other_deduction_10', label: 'Other Deduction 10', required: false },
-          { key: 'total_deduction', label: 'Total Deduction Amount', required: false },
           { key: 'net_amount', label: 'Net Amount', required: false },
           { key: 'delivery_location', label: 'Delivery Location', required: false },
           { key: 'remarks', label: 'Remarks', required: false },
@@ -1580,4 +1655,3 @@ export default function ConfirmPurchaseOrderForm() {
     </div>
   );
 }
-

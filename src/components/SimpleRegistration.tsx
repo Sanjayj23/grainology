@@ -383,8 +383,9 @@ export default function SimpleRegistration() {
   };
 
   const handleSubmit = async () => {
-    if (requiresEmailOtp && (!emailOtpSent || !emailOtp)) {
-      setError('Please verify Email OTP');
+    const cleanEmailOtp = emailOtp.trim();
+    if (requiresEmailOtp && !cleanEmailOtp) {
+      setError('Please enter Email OTP');
       return;
     }
 
@@ -399,8 +400,8 @@ export default function SimpleRegistration() {
       formData.append('mobile_number', mobileNumber);
       if (normalizedEmail) {
         formData.append('email', normalizedEmail);
-        if (requiresEmailOtp && emailOtp) {
-          formData.append('email_otp', emailOtp);
+        if (requiresEmailOtp && cleanEmailOtp) {
+          formData.append('email_otp', cleanEmailOtp);
         }
       }
       formData.append('password', password);

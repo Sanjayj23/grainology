@@ -15,6 +15,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { Package, TrendingUp, Layers } from 'lucide-react';
+import { buildAnalyticsFilterParams, type AnalyticsDateFilters } from '../../../lib/analyticsExport';
 
 interface CommodityData {
   commodity: string;
@@ -36,21 +37,24 @@ interface VarietyData {
 
 interface Props {
   period: string;
+  orderType: 'sales' | 'purchase';
+  filters: AnalyticsDateFilters;
 }
 
 const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 
-export default function CommodityAnalysis({ period }: Props) {
+export default function CommodityAnalysis({ period, orderType, filters }: Props) {
   const [salesByCommodity, setSalesByCommodity] = useState<CommodityData[]>([]);
   const [purchaseByCommodity, setPurchaseByCommodity] = useState<CommodityData[]>([]);
   const [varietyBreakdown, setVarietyBreakdown] = useState<VarietyData[]>([]);
   const [priceTrends, setPriceTrends] = useState<Record<string, { date: string; rate: number }[]>>({});
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState<'distribution' | 'amount' | 'variety' | 'trends'>('distribution');
+  const datasetLabel = orderType === 'sales' ? 'Sales' : 'Purchase';
 
   useEffect(() => {
     fetchData();
-  }, [period]);
+  }, [filters, orderType, period]);
 
   const fetchData = async () => {
     try {
@@ -58,15 +62,18 @@ export default function CommodityAnalysis({ period }: Props) {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(
-        `${apiUrl}/analytics/commodity?period=${period}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
+      const query = new URLSearchParams(
+        Object.entries(buildAnalyticsFilterParams(filters, { orderType, period }))
+          .filter(([, value]) => value !== null && value !== undefined && value !== '')
+          .map(([key, value]) => [key, String(value)])
       );
+
+      const response = await fetch(`${apiUrl}/analytics/commodity?${query.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (response.ok) {
         const result = await response.json();
@@ -89,8 +96,33 @@ export default function CommodityAnalysis({ period }: Props) {
     return `₹${value.toFixed(0)}`;
   };
 
+  const formatPercentLabel = (percent?: number) => {
+    if (!percent || percent <= 0) return '0%';
+
+    const percentage = percent * 100;
+    if (percentage < 0.1) return '<0.1%';
+    if (percentage < 1) return `${percentage.toFixed(1)}%`;
+    return `${percentage.toFixed(0)}%`;
+  };
+
+  const activeCommodityData = (orderType === 'sales' ? salesByCommodity : purchaseByCommodity)
+    .map((item) => ({
+      ...item,
+      avgRate: Math.round((item.avgRate || 0) * 100) / 100,
+      minRate: Math.round((item.minRate || 0) * 100) / 100,
+      maxRate: Math.round((item.maxRate || 0) * 100) / 100,
+      weight: Math.round((item.weight || 0) * 1000) / 1000,
+      amount: Math.round((item.amount || 0) * 100) / 100
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const hasCommodityData =
+    activeCommodityData.length > 0 ||
+    varietyBreakdown.length > 0 ||
+    Object.keys(priceTrends).length > 0;
+
   // Prepare data for pie chart
-  const pieData = salesByCommodity.map((c, index) => ({
+  const pieData = activeCommodityData.map((c, index) => ({
     name: c.commodity,
     value: c.orders,
     color: COLORS[index % COLORS.length]
@@ -125,6 +157,16 @@ export default function CommodityAnalysis({ period }: Props) {
       <div className="bg-white rounded-xl shadow-lg p-6 animate-pulse">
         <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
         <div className="h-64 bg-gray-100 rounded"></div>
+      </div>
+    );
+  }
+
+  if (!hasCommodityData) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-10 text-center text-gray-500">
+        <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <p className="text-lg font-medium text-gray-700">No commodity analytics available</p>
+        <p className="text-sm mt-2">Confirmed sales or purchase order data is needed to populate this section.</p>
       </div>
     );
   }
@@ -185,7 +227,7 @@ export default function CommodityAnalysis({ period }: Props) {
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <Package className="w-5 h-5 text-emerald-600" />
-              Commodity-wise Distribution (Orders)
+              {datasetLabel} Commodity-wise Distribution (Orders)
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -197,13 +239,18 @@ export default function CommodityAnalysis({ period }: Props) {
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  label={({ name, percent }) => `${name} (${formatPercentLabel(percent)})`}
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [value, 'Orders']} />
+                <Tooltip
+                  formatter={(value: number, _name, item: any) => {
+                    const percent = item?.payload?.percent;
+                    return [value, `Orders (${formatPercentLabel(percent)})`];
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -211,7 +258,7 @@ export default function CommodityAnalysis({ period }: Props) {
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Commodity Summary</h3>
             <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {salesByCommodity.map((c, index) => (
+              {activeCommodityData.map((c, index) => (
                 <div key={c.commodity} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div 
@@ -235,10 +282,10 @@ export default function CommodityAnalysis({ period }: Props) {
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-indigo-600" />
-            Commodity vs Amount
+            {datasetLabel} Commodity vs Amount
           </h3>
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={salesByCommodity} layout="vertical">
+            <BarChart data={activeCommodityData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis 
                 type="number" 
@@ -258,7 +305,7 @@ export default function CommodityAnalysis({ period }: Props) {
               <Legend />
               <Bar 
                 dataKey="amount" 
-                name="Sales Amount" 
+                name="Total Amount" 
                 fill="#10b981" 
                 radius={[0, 4, 4, 0]}
               />
@@ -323,7 +370,7 @@ export default function CommodityAnalysis({ period }: Props) {
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-amber-600" />
-            Commodity Price Trends
+            {datasetLabel} Commodity Price Trends
           </h3>
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={priceTrendData}>
@@ -376,7 +423,7 @@ export default function CommodityAnalysis({ period }: Props) {
               </tr>
             </thead>
             <tbody>
-              {salesByCommodity.map((c, index) => (
+              {activeCommodityData.map((c, index) => (
                 <tr key={c.commodity} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className="p-3 font-medium">{c.commodity}</td>
                   <td className="p-3 text-right">{formatCurrency(c.avgRate)}</td>

@@ -1,6 +1,8 @@
 import Footer from '../components/Footer';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useState } from 'react';
+import { useSiteSettings } from '../lib/siteSettings';
+import { api } from '../lib/client';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -11,13 +13,38 @@ export default function Contact() {
     message: ''
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const { settings } = useSiteSettings();
+  const emailDetail = settings.contactDetails.find((item) => item.key === 'email');
+  const phoneDetail = settings.contactDetails.find((item) => item.key === 'phone');
+  const addressDetail = settings.contactDetails.find((item) => item.key === 'address');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Form submitted:', formData);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    setSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      await api.request('/contact-inquiries', {
+        method: 'POST',
+        body: JSON.stringify(formData)
+      });
+
+      setSubmitted(true);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        subject: '',
+        message: ''
+      });
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (error: any) {
+      setErrorMessage(error?.error || error?.message || 'Unable to submit your message right now.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -46,9 +73,10 @@ export default function Contact() {
                     <Mail className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
-                    <p className="text-gray-600">support@grainology.com</p>
-                    <p className="text-gray-600">info@grainology.com</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">{emailDetail?.title || 'Email'}</h3>
+                    {(emailDetail?.lines || []).map((line) => (
+                      <p key={line} className="text-gray-600">{line}</p>
+                    ))}
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -56,9 +84,10 @@ export default function Contact() {
                     <Phone className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                    <p className="text-gray-600">+91 1800-XXX-XXXX</p>
-                    <p className="text-gray-600">+91 1800-XXX-XXXX (Toll Free)</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">{phoneDetail?.title || 'Phone'}</h3>
+                    {(phoneDetail?.lines || []).map((line) => (
+                      <p key={line} className="text-gray-600">{line}</p>
+                    ))}
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -66,16 +95,18 @@ export default function Contact() {
                     <MapPin className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Address</h3>
-                    <p className="text-gray-600">India</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">{addressDetail?.title || 'Address'}</h3>
+                    {(addressDetail?.lines || []).map((line) => (
+                      <p key={line} className="text-gray-600">{line}</p>
+                    ))}
                   </div>
                 </div>
               </div>
 
               <div className="mt-12 p-6 bg-green-50 rounded-xl">
-                <h3 className="font-semibold text-gray-900 mb-3">Business Hours</h3>
-                <p className="text-gray-600 mb-1">Monday - Friday: 9:00 AM - 6:00 PM</p>
-                <p className="text-gray-600">Saturday: 10:00 AM - 4:00 PM</p>
+                <h3 className="font-semibold text-gray-900 mb-3">{settings.businessHours.heading}</h3>
+                <p className="text-gray-600 mb-1">{settings.businessHours.primary}</p>
+                <p className="text-gray-600">{settings.businessHours.secondary}</p>
               </div>
             </div>
 
@@ -152,11 +183,17 @@ export default function Contact() {
                     Thank you! Your message has been sent. We'll get back to you soon.
                   </div>
                 )}
+                {errorMessage && (
+                  <div className="bg-rose-100 border border-rose-300 text-rose-700 px-4 py-3 rounded-lg">
+                    {errorMessage}
+                  </div>
+                )}
                 <button
                   type="submit"
-                  className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                  disabled={submitting}
+                  className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Send Message <Send className="w-5 h-5" />
+                  {submitting ? 'Sending...' : 'Send Message'} <Send className="w-5 h-5" />
                 </button>
               </form>
             </div>
@@ -168,4 +205,3 @@ export default function Contact() {
     </div>
   );
 }
-

@@ -3,32 +3,48 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import type { Profile } from '../lib/client';
 
+const AUTH_SYNC_STORAGE_KEY = 'grainology_auth_sync';
+const AUTH_SYNC_EVENT = 'grainology-auth-changed';
+
 export function useAuth() {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
-    api.auth.getSession().then(async ({ data: { session } }: any) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        // Ensure token is available before loading profile
-        // getSession should have saved it, but double-check
+    let isMounted = true;
+
+    const syncSession = async () => {
+      const { data: { session } }: any = await api.auth.getSession();
+
+      if (!isMounted) return;
+
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+
+      if (nextUser) {
         const token = localStorage.getItem('auth_token');
         if (token) {
           api.setToken(token);
         }
-        await loadProfile();
+        await loadProfile(nextUser);
       } else {
+        setProfile(null);
         setLoading(false);
       }
-    });
+    };
+
+    syncSession();
 
     const { data: { subscription } } = api.auth.onAuthStateChange((_event: any, session: any) => {
       (async () => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await loadProfile();
+        if (!isMounted) return;
+
+        const nextUser = session?.user ?? null;
+        setUser(nextUser);
+        if (nextUser) {
+          await loadProfile(nextUser);
         } else {
           setProfile(null);
           setLoading(false);
@@ -36,10 +52,30 @@ export function useAuth() {
       })();
     });
 
-    return () => subscription.unsubscribe();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== 'auth_token' && event.key !== AUTH_SYNC_STORAGE_KEY) return;
+      if (event.key === 'auth_token' && event.newValue == null) {
+        api.setToken(null);
+      }
+      syncSession();
+    };
+
+    const handleAuthSync = () => {
+      syncSession();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener(AUTH_SYNC_EVENT, handleAuthSync);
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener(AUTH_SYNC_EVENT, handleAuthSync);
+    };
   }, []);
 
-  async function loadProfile() {
+  async function loadProfile(currentUser?: any | null) {
     try {
       // Prefer server-side current-profile endpoint to avoid mismatched IDs or stale cache
       const current = await api.request('/profiles/me/current');
@@ -56,12 +92,13 @@ export function useAuth() {
         setProfile(null);
       } else {
         // Fallback: use minimal profile from current user to avoid blank dashboard
-        if (user) {
+        const fallbackUser = currentUser || user;
+        if (fallbackUser) {
           setProfile({
-            id: user.id,
-            email: user.email,
-            name: user.name || user.email || 'User',
-            role: user.role || 'customer'
+            id: fallbackUser.id,
+            email: fallbackUser.email,
+            name: fallbackUser.name || fallbackUser.email || 'User',
+            role: fallbackUser.role || 'customer'
           } as any);
         }
       }
@@ -113,27 +150,39 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    if (signingOut) return; // Prevent multiple clicks
+
+    setSigningOut(true);
+    console.log('🔐 [useAuth] Starting signOut process...');
+
     try {
-      // Always clear local state first, even if API call fails
-    setUser(null);
-    setProfile(null);
+      // Clear local state immediately and synchronously
+      console.log('🔐 [useAuth] Clearing user and profile state...');
+      setUser(null);
+      setProfile(null);
       setLoading(false);
 
-      // Clear stored token proactively
+      // Clear all auth-related storage
+      console.log('🔐 [useAuth] Clearing localStorage and sessionStorage...');
       localStorage.removeItem('auth_token');
+      sessionStorage.clear(); // Clear all session storage
       api.setToken(null);
 
-      // Try to call the API, but don't fail if it errors
-      await api.auth.signOut();
+      // Fire the API call in the background so logout feels instant
+      console.log('🔐 [useAuth] Calling backend signOut API...');
+      api.auth.signOut().catch((error: any) => {
+        console.warn('🔐 [useAuth] Sign out API call failed (but that\'s okay):', error);
+      });
+      
+      console.log('✅ [useAuth] SignOut process completed');
     } catch (error) {
-      // Ignore errors - we've already cleared local state
-      console.warn('Sign out API call failed, but local state cleared:', error);
-      api.setToken(null);
+      console.error('🔐 [useAuth] SignOut error:', error);
     } finally {
-      // Ensure token is cleared and force navigation to login
-      localStorage.removeItem('auth_token');
-      api.setToken(null);
-      window.location.href = '/login';
+      // Reset signingOut state after a brief delay to ensure state updates propagate
+      setTimeout(() => {
+        setSigningOut(false);
+        console.log('🔐 [useAuth] signingOut flag reset to false');
+      }, 100);
     }
   };
 
@@ -141,6 +190,7 @@ export function useAuth() {
     user,
     profile,
     loading,
+    signingOut,
     signUp,
     signIn,
     signOut,

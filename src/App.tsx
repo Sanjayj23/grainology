@@ -37,7 +37,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function Dashboard() {
-  const { profile, loading, signOut } = useAuth();
+  const { profile, loading, signOut, signingOut } = useAuth();
 
   // Wait for profile to load before determining which panel to show
   if (loading || !profile) {
@@ -51,11 +51,11 @@ function Dashboard() {
     );
   }
 
-  if (profile.role === 'admin') {
-    return <AdminPanel profile={profile} onSignOut={signOut} />;
+  if (profile.role === 'admin' || profile.role === 'super_admin') {
+    return <AdminPanel profile={profile} onSignOut={signOut} signingOut={signingOut} />;
   }
 
-  return <CustomerPanel profile={profile} onSignOut={signOut} />;
+  return <CustomerPanel profile={profile} onSignOut={signOut} signingOut={signingOut} />;
 }
 
 function AuthRoute({ children }: { children: React.ReactNode }) {

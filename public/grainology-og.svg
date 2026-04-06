@@ -1,0 +1,29 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#07150F"/>
+  <rect x="48" y="48" width="1104" height="534" rx="36" fill="url(#paint0_linear)"/>
+  <circle cx="1032" cy="128" r="160" fill="#6EE7B7" fill-opacity="0.08"/>
+  <circle cx="180" cy="520" r="220" fill="#A7F3D0" fill-opacity="0.08"/>
+  <rect x="96" y="96" width="120" height="120" rx="28" fill="#0F3D2E"/>
+  <path d="M131 166C131 146.67 146.67 131 166 131V139C151.088 139 139 151.088 139 166H131Z" fill="#A7F3D0"/>
+  <path d="M143 172C143 154.327 157.327 140 175 140V148C161.745 148 151 158.745 151 172H143Z" fill="#6EE7B7"/>
+  <path d="M139 181C155.569 181 169 167.569 169 151H177C177 171.987 159.987 189 139 189V181Z" fill="#D1FAE5"/>
+  <circle cx="175" cy="136" r="7" fill="#D1FAE5"/>
+  <text x="96" y="300" fill="white" font-family="Arial, sans-serif" font-size="68" font-weight="700">
+    Grainology
+  </text>
+  <text x="96" y="372" fill="#D1D5DB" font-family="Arial, sans-serif" font-size="34" font-weight="500">
+    Digital Agri-Marketplace
+  </text>
+  <text x="96" y="454" fill="#A7F3D0" font-family="Arial, sans-serif" font-size="28" font-weight="500">
+    Market intelligence, trade workflows, logistics visibility,
+  </text>
+  <text x="96" y="494" fill="#A7F3D0" font-family="Arial, sans-serif" font-size="28" font-weight="500">
+    and operational control in one connected platform.
+  </text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="96" y1="96" x2="1035" y2="555" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B2017"/>
+      <stop offset="1" stop-color="#164E35"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -1759,7 +1759,10 @@ export default function AuthPage({ initialMode = 'login' }: AuthPageProps = {}) 
                   <input
                     type="text"
                     value={loginId}
-                    onChange={(e) => setLoginId(e.target.value)}
+                    onChange={(e) => {
+                      setLoginId(e.target.value);
+                      if (error) setError('');
+                    }}
                     required
                     className="w-full px-4 py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                     placeholder="Enter 10-digit mobile number or email"
@@ -1774,7 +1777,10 @@ export default function AuthPage({ initialMode = 'login' }: AuthPageProps = {}) 
                   <input
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (error) setError('');
+                    }}
                     required
                     className="w-full px-4 py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                     placeholder="Enter your password"

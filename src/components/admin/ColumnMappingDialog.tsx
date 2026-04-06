@@ -19,10 +19,9 @@ export default function ColumnMappingDialog({
   previewRows = []
 }: ColumnMappingDialogProps) {
   const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [autoMapped, setAutoMapped] = useState(false);
 
   useEffect(() => {
-    if (isOpen && availableColumns.length > 0 && !autoMapped) {
+    if (isOpen && availableColumns.length > 0) {
       // Auto-map columns based on common patterns
       const autoMapping: Record<string, string> = {};
       requiredFields.forEach(field => {
@@ -44,9 +43,8 @@ export default function ColumnMappingDialog({
       });
       
       setMapping(autoMapping);
-      setAutoMapped(true);
     }
-  }, [isOpen, availableColumns, requiredFields, autoMapped]);
+  }, [isOpen, availableColumns, requiredFields]);
 
   const handleMappingChange = (fieldKey: string, columnName: string) => {
     setMapping(prev => ({

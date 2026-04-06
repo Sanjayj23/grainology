@@ -80,6 +80,12 @@ export default function AllConfirmedSalesOrders() {
     }
   };
 
+  const toUpperText = (value?: string | null) => String(value ?? '').trim().toUpperCase();
+  const toUpperOrDash = (value?: string | null) => {
+    const normalized = toUpperText(value);
+    return normalized || '-';
+  };
+
   const fetchOrderDetails = async (orderId: string) => {
     setLoadingDetails(true);
     try {
@@ -171,7 +177,7 @@ export default function AllConfirmedSalesOrders() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {order.commodity} {order.variety && `- ${order.variety}`}
+                      {toUpperText(order.commodity)} {toUpperText(order.variety) && `- ${toUpperText(order.variety)}`}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{order.vehicle_no}</td>
                     <td className="px-6 py-4 text-sm text-gray-900 font-bold">{order.net_weight_mt} MT</td>
@@ -238,7 +244,7 @@ export default function AllConfirmedSalesOrders() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500 font-medium">State</p>
-                      <p className="text-lg text-gray-900 font-bold">{selectedOrder.state || '-'}</p>
+                      <p className="text-lg text-gray-900 font-bold">{toUpperOrDash(selectedOrder.state)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500 font-medium">Location</p>
@@ -250,11 +256,11 @@ export default function AllConfirmedSalesOrders() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500 font-medium">Commodity</p>
-                      <p className="text-lg text-gray-900 font-bold">{selectedOrder.commodity}</p>
+                      <p className="text-lg text-gray-900 font-bold">{toUpperOrDash(selectedOrder.commodity)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500 font-medium">Variety</p>
-                      <p className="text-lg text-gray-900 font-bold">{selectedOrder.variety || '-'}</p>
+                      <p className="text-lg text-gray-900 font-bold">{toUpperOrDash(selectedOrder.variety)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500 font-medium">Vehicle No.</p>
@@ -388,4 +394,3 @@ export default function AllConfirmedSalesOrders() {
     </div>
   );
 }
-

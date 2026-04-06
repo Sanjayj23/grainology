@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Profile, api, Offer, Order, QualityParameter } from '../lib/client';
 import { Home, PlusCircle, LogOut, Cloud, TrendingUp, ShoppingCart, Store, Menu, X, FileText, Truck } from 'lucide-react';
 import Dashboard from './customer/Dashboard';
@@ -21,9 +22,11 @@ type View = 'dashboard' | 'create-trade' | 'purchase-order' | 'sale-order' | 'co
 interface CustomerPanelProps {
   profile: Profile | null; // Allow profile to be null
   onSignOut: () => void;
+  signingOut: boolean;
 }
 
-export default function CustomerPanel({ profile, onSignOut }: CustomerPanelProps) {
+export default function CustomerPanel({ profile, onSignOut, signingOut }: CustomerPanelProps) {
+  const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [offers, setOffers] = useState<Offer[]>([]);
   const [myOrders, setMyOrders] = useState<Order[]>([]);
@@ -347,11 +350,28 @@ export default function CustomerPanel({ profile, onSignOut }: CustomerPanelProps
 
         <div className="p-4 border-t border-gray-200 flex-shrink-0">
           <button
-            onClick={onSignOut}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+            onClick={async () => {
+              console.log('📍 [CustomerPanel] Sign out button clicked');
+              try {
+                await onSignOut();
+                console.log('📍 [CustomerPanel] onSignOut completed, navigating to /login');
+                setTimeout(() => {
+                  navigate('/login');
+                }, 50);
+              } catch (error) {
+                console.error('📍 [CustomerPanel] Sign out error:', error);
+                localStorage.removeItem('auth_token');
+                sessionStorage.clear();
+                navigate('/login');
+              }
+            }}
+            disabled={signingOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <LogOut className="w-5 h-5" />
-            <span className="font-medium">Sign Out</span>
+            <span className="font-medium">
+              {signingOut ? 'Signing Out...' : 'Sign Out'}
+            </span>
           </button>
         </div>
       </aside>

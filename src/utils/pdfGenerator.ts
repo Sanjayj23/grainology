@@ -1,5 +1,11 @@
 // PDF Generator utility for confirmed orders
 export const generateOrderPDF = (order: any, orderType: 'sales' | 'purchase') => {
+  const toUpperText = (value: unknown) => String(value ?? '').trim().toUpperCase();
+  const toUpperOrNA = (value: unknown) => {
+    const normalized = toUpperText(value);
+    return normalized || 'N/A';
+  };
+
   // Create a printable HTML content
   const htmlContent = `
     <!DOCTYPE html>
@@ -120,11 +126,11 @@ export const generateOrderPDF = (order: any, orderType: 'sales' | 'purchase') =>
         <div class="grid">
           <div class="field">
             <div class="field-label">Commodity</div>
-            <div class="field-value">${order.commodity}</div>
+            <div class="field-value">${toUpperOrNA(order.commodity)}</div>
           </div>
           <div class="field">
             <div class="field-label">Variety</div>
-            <div class="field-value">${order.variety || 'N/A'}</div>
+            <div class="field-value">${toUpperOrNA(order.variety)}</div>
           </div>
           <div class="field">
             <div class="field-label">${orderType === 'sales' ? 'Seller' : 'Supplier'} Name</div>
@@ -132,7 +138,7 @@ export const generateOrderPDF = (order: any, orderType: 'sales' | 'purchase') =>
           </div>
           <div class="field">
             <div class="field-label">State</div>
-            <div class="field-value">${order.state || 'N/A'}</div>
+            <div class="field-value">${toUpperOrNA(order.state)}</div>
           </div>
         </div>
       </div>
@@ -259,4 +265,3 @@ export const generateOrderPDF = (order: any, orderType: 'sales' | 'purchase') =>
     }, 250);
   }
 };
-

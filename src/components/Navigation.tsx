@@ -5,27 +5,44 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, signingOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
+    console.log('📍 [Navigation] handleSignOut called');
     try {
+      // Call signOut and wait briefly for state to be cleared
       await signOut();
+      console.log('📍 [Navigation] signOut completed, navigating to /login');
+      // Add a small delay to ensure state is cleared before navigation
+      setTimeout(() => {
+        navigate('/login');
+      }, 50);
     } catch (error) {
-      console.warn('Sign out error:', error);
-    } finally {
-      // Always navigate to home, even if signOut fails
-      navigate('/');
+      console.error('📍 [Navigation] Handle signOut error:', error);
+      // Fallback: clear manually and navigate
+      localStorage.removeItem('auth_token');
+      sessionStorage.clear();
+      navigate('/login');
     }
   };
 
   return (
     <>
       {/* Top Partner Bar */}
-      <div className="bg-blue-600 text-white py-2 px-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center text-sm">
-          <Link to="/contact" className="hover:underline">PARTNER WITH US</Link>
-          <Link to="/register" className="hover:underline font-semibold">Create Your Trade Register</Link>
+      <div className="bg-stone-900 text-white py-2.5 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-stone-300">
+            Grainology for agricultural trade intelligence, operations, and partnerships
+          </p>
+          <div className="flex items-center gap-4">
+            {/* <Link to="/contact" className="font-medium text-emerald-300 hover:text-emerald-200 transition-colors">
+              Partner with us
+            </Link> */}
+            <Link to="/register" className="hover:underline font-semibold">
+              Create your trade account
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -64,9 +81,10 @@ export default function Navigation() {
                   </Link>
                   <button
                     onClick={handleSignOut}
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                    disabled={signingOut}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Logout
+                    {signingOut ? 'Logging Out...' : 'Logout'}
                   </button>
                 </div>
               ) : (
@@ -135,9 +153,10 @@ export default function Navigation() {
                       handleSignOut();
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                    disabled={signingOut}
+                    className="w-full text-left bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Logout
+                    {signingOut ? 'Logging Out...' : 'Logout'}
                   </button>
                 </>
               ) : (

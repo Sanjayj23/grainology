@@ -12,6 +12,7 @@ const CACHE_DURATION = {
   ADMIN_DASHBOARD: 60 * 1000, // 1 minute
   ADMIN_VERSION: 30 * 1000, // 30 seconds
   FILTERS: 24 * 60 * 60 * 1000, // 24 hours
+  SITE_SETTINGS: 5 * 60 * 1000, // 5 minutes
 };
 
 interface CacheEntry<T> {

@@ -1,33 +1,65 @@
 // JWT-based API client for backend auth and data
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://grainology-rmg1.onrender.com/api';
+const AUTH_SYNC_STORAGE_KEY = 'grainology_auth_sync';
+const AUTH_SYNC_EVENT = 'grainology-auth-changed';
 
 class ApiClient {
   constructor() {
     this.token = localStorage.getItem('auth_token') || null;
+    this.sessionRequestVersion = 0;
+  }
+
+  broadcastAuthState(token) {
+    if (typeof window === 'undefined') return;
+
+    const payload = {
+      tokenPresent: !!token,
+      timestamp: Date.now()
+    };
+
+    try {
+      localStorage.setItem(AUTH_SYNC_STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {
+      console.warn('Unable to persist auth sync state:', error);
+    }
+
+    window.dispatchEvent(new CustomEvent(AUTH_SYNC_EVENT, { detail: payload }));
   }
 
   setToken(token) {
-    this.token = token;
-    if (token) {
-      localStorage.setItem('auth_token', token);
+    const normalizedToken = token || null;
+    const previousToken = this.token || null;
+
+    this.token = normalizedToken;
+    if (normalizedToken) {
+      localStorage.setItem('auth_token', normalizedToken);
     } else {
       localStorage.removeItem('auth_token');
+    }
+
+    if (previousToken !== normalizedToken) {
+      this.sessionRequestVersion += 1;
+      this.broadcastAuthState(normalizedToken);
     }
   }
 
   async request(endpoint, options = {}) {
+    const { authToken, ...fetchOptions } = options;
     const url = `${API_BASE_URL}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...fetchOptions.headers,
     };
 
-    // Always get the latest token from localStorage in case it was updated
-    const token = localStorage.getItem('auth_token') || this.token;
+    // Always get the latest token from localStorage in case it was updated.
+    // authToken lets callers pin a request to the token snapshot they started with.
+    const token = authToken !== undefined ? authToken : localStorage.getItem('auth_token');
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
       // Update this.token to keep it in sync
       this.token = token;
+    } else {
+      this.token = null;
     }
 
     // Create an AbortController for timeout (90s to allow Render free-tier cold start)
@@ -36,23 +68,29 @@ class ApiClient {
 
     try {
       const response = await fetch(url, {
-        ...options,
+        ...fetchOptions,
         headers,
         signal: controller.signal,
       });
       
       clearTimeout(timeoutId);
 
+      const activeToken = localStorage.getItem('auth_token');
+
       // Handle 401 (Unauthorized) gracefully for session endpoint
       if (response.status === 401 && endpoint === '/auth/session') {
-        // Clear invalid token
-        this.setToken(null);
+        // Only clear auth state if the failing token is still the active one.
+        if (token && activeToken === token) {
+          this.setToken(null);
+        }
         return { user: null, session: null };
       }
 
       // For 401 on other endpoints, clear token and throw
       if (response.status === 401) {
-        this.setToken(null);
+        if (token && activeToken === token) {
+          this.setToken(null);
+        }
         const error = await response.json().catch(() => ({ error: 'Authentication required' }));
         throw error;
       }
@@ -105,21 +143,41 @@ class ApiClient {
   auth = {
     getSession: async () => {
       try {
-        // First check if we have a token in localStorage
-        const storedToken = localStorage.getItem('auth_token');
-        if (storedToken) {
-          this.token = storedToken;
+        // Pin this lookup to the token that existed when the request started.
+        // If logout/login changes the token mid-flight, ignore the stale response.
+        const requestToken = localStorage.getItem('auth_token');
+        if (!requestToken) {
+          this.token = null;
+          return {
+            data: { session: null, user: null },
+            error: null
+          };
         }
 
-        const data = await this.request('/auth/session');
+        this.token = requestToken;
+        const requestVersion = this.sessionRequestVersion;
+        const data = await this.request('/auth/session', { authToken: requestToken });
+
+        const currentToken = localStorage.getItem('auth_token');
+        if (requestVersion !== this.sessionRequestVersion || currentToken !== requestToken) {
+          if (!currentToken) {
+            this.token = null;
+            return {
+              data: { session: null, user: null },
+              error: null
+            };
+          }
+
+          return this.auth.getSession();
+        }
 
         // Persist access token if the session includes one (supports existing logins)
         if (data?.session?.access_token) {
           this.setToken(data.session.access_token);
-        } else if (data?.session && !data.session.access_token && storedToken) {
+        } else if (data?.session && !data.session.access_token) {
           // If session exists but no token in response, use stored token
           // This handles cases where backend doesn't return token in session response
-          this.token = storedToken;
+          this.token = requestToken;
         }
 
         return {
@@ -200,23 +258,18 @@ class ApiClient {
           apiUrl: `${API_BASE_URL}/auth/signin`
         });
 
-        const response = await fetch(`${API_BASE_URL}/auth/signin`, {
+        const data = await this.request('/auth/signin', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify(payload),
         });
 
-        console.log('📥 Sign in response status:', response.status);
-        const data = await response.json();
         console.log('📥 Sign in response data:', { 
           hasUser: !!data.user, 
           hasSession: !!data.session,
           error: data.error 
         });
 
-        if (!response.ok) {
+        if (data.error) {
           console.error('❌ Sign in failed:', data);
           const message = data.message || (typeof data.error === 'string' ? data.error : data.error?.message) || 'Invalid credentials';
           return {
@@ -236,9 +289,18 @@ class ApiClient {
           error: null
         };
       } catch (error) {
+        console.error('🔐 Sign in error:', error);
+        let errorMessage = 'Invalid credentials';
+        if (error.message && error.message.includes('timeout')) {
+          errorMessage = 'Login request is taking longer than expected. Please try again.';
+        } else if (error.message && error.message.includes('Network')) {
+          errorMessage = 'Network connection error. Please check your internet and try again.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
         return {
           data: { user: null, session: null },
-          error: { message: error.message || 'Failed to sign in' }
+          error: { message: errorMessage, details: error.message }
         };
       }
     },

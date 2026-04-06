@@ -29,6 +29,12 @@ interface EnhancedDashboardProps {
     totalUsers: number;
     totalFarmers: number;
     totalTraders: number;
+    totalCorporates?: number;
+    totalFpos?: number;
+    totalMillers?: number;
+    totalFinancers?: number;
+    totalAdmins?: number;
+    totalSuperAdmins?: number;
     verifiedUsers: number;
     pendingApprovalUsers?: number;
     locationPendingCount?: number;
@@ -201,9 +207,17 @@ export default function EnhancedDashboard({ userId, dataVersion, stats, onPendin
             <div>
               <p className="text-sm opacity-90">All Users</p>
               <p className="text-4xl font-bold mt-2">{stats?.totalUsers || 0}</p>
-              <p className="text-xs opacity-75 mt-1">
-                {stats?.totalFarmers || 0} Farmers | {stats?.totalTraders || 0} Traders
-              </p>
+              <div className="text-xs opacity-85 mt-2 space-y-1">
+                <p>
+                  {stats?.totalFarmers || 0} Farmers | {stats?.totalTraders || 0} Traders | {stats?.totalCorporates || 0} Corporate
+                </p>
+                <p>
+                  {stats?.totalFpos || 0} FPO | {stats?.totalMillers || 0} Miller | {stats?.totalFinancers || 0} Financer
+                </p>
+                <p>
+                  {stats?.totalAdmins || 0} Admin | {stats?.totalSuperAdmins || 0} Super Admin
+                </p>
+              </div>
             </div>
             <Users className="w-12 h-12 opacity-30" />
           </div>

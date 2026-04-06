@@ -49,6 +49,16 @@ function excelKey(s: string): string {
   return String(s || '').replace(/\s+/g, '');
 }
 
+function normalizeUpperText(value: unknown): string {
+  return String(value ?? '').trim().toUpperCase();
+}
+
+function normalizeUpperList(values: string[] = []): string[] {
+  return values
+    .map((value) => normalizeUpperText(value))
+    .filter(Boolean);
+}
+
 /**
  * Generate sample Excel file with Master List sheet + Sample Data sheet.
  * Dropdowns: State (fixed); Location by State; Warehouse by Location; Commodity (fixed); Variety by Commodity; Customer (fixed).
@@ -69,8 +79,33 @@ export async function generateSampleExcel(
   workbook.created = new Date();
 
   const ml = options.masterList;
-  const states = (ml.states && ml.states.length > 0) ? ml.states : DEFAULT_STATES;
+  const states = normalizeUpperList((ml.states && ml.states.length > 0) ? ml.states : DEFAULT_STATES);
+  const commodities = normalizeUpperList(ml.commodities);
+  const varieties = normalizeUpperList(ml.varieties || []);
+  const varietiesByCommodityKey = ml.varietiesByCommodityKey
+    ? Object.fromEntries(
+        Object.entries(ml.varietiesByCommodityKey).map(([commodityKey, commodityVarieties]) => [
+          excelKey(normalizeUpperText(commodityKey)),
+          normalizeUpperList(commodityVarieties || []),
+        ])
+      )
+    : undefined;
   const useCascaded = !!(ml.locationsByState && ml.warehousesByLocationKey);
+
+  const upperCaseColumnIndexes = new Set(
+    options.headers
+      .map((header, index) => {
+        const normalizedHeader = normalizeUpperText(header);
+        return normalizedHeader === 'STATE' || normalizedHeader === 'COMMODITY' || normalizedHeader === 'VARIETY'
+          ? index
+          : -1;
+      })
+      .filter((index) => index >= 0)
+  );
+
+  const normalizedSampleRows = options.sampleRows.map((row) =>
+    row.map((cell, index) => (upperCaseColumnIndexes.has(index) ? normalizeUpperText(cell) : cell))
+  );
 
   // Build Master List sheet (add as second sheet so Sample Data can be first)
   const dataSheetName = options.sheetName || 'Sample Data';
@@ -83,7 +118,7 @@ export async function generateSampleExcel(
     cell.font = { bold: true };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
   });
-  options.sampleRows.forEach((row) => dataSheet.addRow(row));
+  normalizedSampleRows.forEach((row) => dataSheet.addRow(row));
   options.headers.forEach((h, i) => {
     const col = dataSheet.getColumn(i + 1);
     col.width = Math.min(36, Math.max(14, String(h).length + 2));
@@ -120,18 +155,18 @@ export async function generateSampleExcel(
     rowMap['Warehouses'] = currentRow++;
   }
 
-  masterSheet.addRow(['Commodities', ...ml.commodities]);
+  masterSheet.addRow(['Commodities', ...commodities]);
   rowMap['Commodities'] = currentRow++;
   masterSheet.addRow(['Customers / Sellers', ...ml.customers]);
   rowMap['Customers'] = currentRow++;
 
-  if (useCascaded && ml.varietiesByCommodityKey) {
+  if (useCascaded && varietiesByCommodityKey) {
     // Single "Varieties" row with ALL varieties (fixed list - works in all Excel)
-    const allVarieties = [...new Set((Object.values(ml.varietiesByCommodityKey) as string[][]).flat())];
-    masterSheet.addRow(['Varieties', ...allVarieties.length ? allVarieties : (ml.varieties || [])]);
+    const allVarieties = [...new Set((Object.values(varietiesByCommodityKey) as string[][]).flat())];
+    masterSheet.addRow(['Varieties', ...(allVarieties.length ? allVarieties : varieties)]);
     rowMap['Varieties'] = currentRow++;
-  } else if (ml.varieties && ml.varieties.length > 0) {
-    masterSheet.addRow(['Varieties (sample)', ...ml.varieties]);
+  } else if (varieties.length > 0) {
+    masterSheet.addRow(['Varieties (sample)', ...varieties]);
     rowMap['Varieties'] = currentRow++;
   }
 
@@ -166,8 +201,8 @@ export async function generateSampleExcel(
       }
     }
   }
-  if (useCascaded && ml.varietiesByCommodityKey) {
-    for (const commKey of Object.keys(ml.varietiesByCommodityKey)) {
+  if (useCascaded && varietiesByCommodityKey) {
+    for (const commKey of Object.keys(varietiesByCommodityKey)) {
       const key = 'Varieties_' + commKey;
       const r = rowMap[key];
       if (r != null) workbook.definedNames.add(key, `${masterName}!$B$${r}:$Z$${r}`);
@@ -176,7 +211,7 @@ export async function generateSampleExcel(
 
   // Dropdown validations: use direct range ref for fixed lists (reliable in all Excel), formula with = for named/INDIRECT
   const dropdownColumns = options.dropdownColumns || [];
-  const maxDataRow = Math.max(2 + options.sampleRows.length, 300);
+  const maxDataRow = Math.max(2 + normalizedSampleRows.length, 300);
   const resolveFormula = (dc: DropdownColumn): string | null => {
     if (dc.masterListRow != null) {
       return `='Master List'!$B$${dc.masterListRow}:$Z$${dc.masterListRow}`;

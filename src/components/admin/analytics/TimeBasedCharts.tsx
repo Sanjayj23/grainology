@@ -14,6 +14,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { TrendingUp, Calendar, BarChart3, Activity } from 'lucide-react';
+import { buildAnalyticsFilterParams, type AnalyticsDateFilters } from '../../../lib/analyticsExport';
 
 interface TimeBasedData {
   date: string;
@@ -30,16 +31,21 @@ interface TimeBasedData {
 interface Props {
   period: string;
   groupBy: string;
+  orderType: 'sales' | 'purchase';
+  filters: AnalyticsDateFilters;
 }
 
-export default function TimeBasedCharts({ period, groupBy }: Props) {
+export default function TimeBasedCharts({ period, groupBy, orderType, filters }: Props) {
   const [data, setData] = useState<TimeBasedData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeChart, setActiveChart] = useState<'trends' | 'amount' | 'comparison'>('trends');
+  const [activeChart, setActiveChart] = useState<'trends' | 'amount' | 'weight'>('trends');
+  const showSales = orderType === 'sales';
+  const showPurchase = orderType === 'purchase';
+  const datasetLabel = showSales ? 'Sales' : 'Purchase';
 
   useEffect(() => {
     fetchData();
-  }, [period, groupBy]);
+  }, [filters, groupBy, orderType, period]);
 
   const fetchData = async () => {
     try {
@@ -47,15 +53,18 @@ export default function TimeBasedCharts({ period, groupBy }: Props) {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(
-        `${apiUrl}/analytics/time-based?period=${period}&groupBy=${groupBy}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
+      const query = new URLSearchParams(
+        Object.entries(buildAnalyticsFilterParams(filters, { orderType, groupBy, period }))
+          .filter(([, value]) => value !== null && value !== undefined && value !== '')
+          .map(([key, value]) => [key, String(value)])
       );
+
+      const response = await fetch(`${apiUrl}/analytics/time-based?${query.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (response.ok) {
         const result = await response.json();
@@ -124,15 +133,15 @@ export default function TimeBasedCharts({ period, groupBy }: Props) {
           Transaction Amount
         </button>
         <button
-          onClick={() => setActiveChart('comparison')}
+          onClick={() => setActiveChart('weight')}
           className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
-            activeChart === 'comparison'
+            activeChart === 'weight'
               ? 'bg-purple-600 text-white shadow-md'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
           <BarChart3 className="w-4 h-4" />
-          Year Comparison
+          Weight Analysis
         </button>
       </div>
 
@@ -158,34 +167,29 @@ export default function TimeBasedCharts({ period, groupBy }: Props) {
                 labelFormatter={(label) => `Date: ${label}`}
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
               />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="salesOrders"
-                name="Sales Orders"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot={{ fill: '#10b981', r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="purchaseOrders"
-                name="Purchase Orders"
-                stroke="#6366f1"
-                strokeWidth={2}
-                dot={{ fill: '#6366f1', r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="totalOrders"
-                name="Total Orders"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={{ fill: '#f59e0b', r: 3 }}
-              />
+            <Legend />
+              {showSales && (
+                <Line
+                  type="monotone"
+                  dataKey="salesOrders"
+                  name="Sales Orders"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={{ fill: '#10b981', r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              )}
+              {showPurchase && (
+                <Line
+                  type="monotone"
+                  dataKey="purchaseOrders"
+                  name="Purchase Orders"
+                  stroke="#6366f1"
+                  strokeWidth={2}
+                  dot={{ fill: '#6366f1', r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -227,32 +231,36 @@ export default function TimeBasedCharts({ period, groupBy }: Props) {
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
               />
               <Legend />
-              <Area
-                type="monotone"
-                dataKey="salesAmount"
-                name="Sales Amount"
-                stroke="#10b981"
-                fill="url(#salesGradient)"
-                strokeWidth={2}
-              />
-              <Area
-                type="monotone"
-                dataKey="purchaseAmount"
-                name="Purchase Amount"
-                stroke="#6366f1"
-                fill="url(#purchaseGradient)"
-                strokeWidth={2}
-              />
+              {showSales && (
+                <Area
+                  type="monotone"
+                  dataKey="salesAmount"
+                  name="Sales Amount"
+                  stroke="#10b981"
+                  fill="url(#salesGradient)"
+                  strokeWidth={2}
+                />
+              )}
+              {showPurchase && (
+                <Area
+                  type="monotone"
+                  dataKey="purchaseAmount"
+                  name="Purchase Amount"
+                  stroke="#6366f1"
+                  fill="url(#purchaseGradient)"
+                  strokeWidth={2}
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {activeChart === 'comparison' && (
+      {activeChart === 'weight' && (
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-purple-600" />
-            Sales vs Purchase Comparison
+            {datasetLabel} Weight Movement
           </h3>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={data}>
@@ -264,57 +272,55 @@ export default function TimeBasedCharts({ period, groupBy }: Props) {
                 stroke="#888"
               />
               <YAxis 
-                tickFormatter={formatCurrency}
+                tickFormatter={(value) => `${Number(value || 0).toFixed(0)} MT`}
                 tick={{ fontSize: 12 }}
                 stroke="#888"
               />
               <Tooltip
-                formatter={(value: number) => [formatCurrency(value)]}
+                formatter={(value: number) => [`${Number(value || 0).toFixed(2)} MT`]}
                 labelFormatter={(label) => `Date: ${label}`}
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
               />
               <Legend />
-              <Bar 
-                dataKey="salesAmount" 
-                name="Sales Amount" 
-                fill="#10b981" 
-                radius={[4, 4, 0, 0]}
-              />
-              <Bar 
-                dataKey="purchaseAmount" 
-                name="Purchase Amount" 
-                fill="#6366f1" 
-                radius={[4, 4, 0, 0]}
-              />
+              {showSales && (
+                <Bar 
+                  dataKey="salesWeight" 
+                  name="Sales Weight (MT)" 
+                  fill="#10b981" 
+                  radius={[4, 4, 0, 0]}
+                />
+              )}
+              {showPurchase && (
+                <Bar 
+                  dataKey="purchaseWeight" 
+                  name="Purchase Weight (MT)" 
+                  fill="#6366f1" 
+                  radius={[4, 4, 0, 0]}
+                />
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 text-white">
-          <p className="text-sm opacity-90">Total Sales Orders</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`${showSales ? 'bg-gradient-to-br from-emerald-500 to-emerald-600' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'} rounded-xl p-4 text-white`}>
+          <p className="text-sm opacity-90">Total {datasetLabel} Orders</p>
           <p className="text-2xl font-bold mt-1">
-            {data.reduce((sum, d) => sum + d.salesOrders, 0).toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-4 text-white">
-          <p className="text-sm opacity-90">Total Purchase Orders</p>
-          <p className="text-2xl font-bold mt-1">
-            {data.reduce((sum, d) => sum + d.purchaseOrders, 0).toLocaleString()}
+            {data.reduce((sum, d) => sum + (showSales ? d.salesOrders : d.purchaseOrders), 0).toLocaleString()}
           </p>
         </div>
         <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white">
-          <p className="text-sm opacity-90">Total Sales Amount</p>
+          <p className="text-sm opacity-90">Total {datasetLabel} Amount</p>
           <p className="text-2xl font-bold mt-1">
-            {formatCurrency(data.reduce((sum, d) => sum + d.salesAmount, 0))}
+            {formatCurrency(data.reduce((sum, d) => sum + (showSales ? d.salesAmount : d.purchaseAmount), 0))}
           </p>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white">
-          <p className="text-sm opacity-90">Total Purchase Amount</p>
+          <p className="text-sm opacity-90">Total {datasetLabel} Weight</p>
           <p className="text-2xl font-bold mt-1">
-            {formatCurrency(data.reduce((sum, d) => sum + d.purchaseAmount, 0))}
+            {data.reduce((sum, d) => sum + (showSales ? d.salesWeight : d.purchaseWeight), 0).toFixed(2)} MT
           </p>
         </div>
       </div>

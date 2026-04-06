@@ -15,7 +15,7 @@ export type Profile = {
   state?: string;
   country?: string;
   pincode?: string;
-  role: 'admin' | 'farmer' | 'trader' | 'fpo' | 'corporate' | 'miller' | 'financer';
+  role: 'admin' | 'super_admin' | 'farmer' | 'trader' | 'fpo' | 'corporate' | 'miller' | 'financer';
   entity_type: 'individual' | 'company';
   kyc_status: 'not_started' | 'pending' | 'verified' | 'rejected';
   kyc_verified_at?: string;
@@ -24,6 +24,7 @@ export type Profile = {
   business_type?: 'private_limited' | 'partnership' | 'proprietorship' | 'llp';
   created_at: string;
   approval_status?: 'pending' | 'approved' | 'rejected';
+  declined_reason?: string;
 };
 
 export type MandiPrice = {

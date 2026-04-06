@@ -1,29 +1,86 @@
-logs
-*.log
+# Backend files and directories
+backend/
+server.js
+routes/
+models/
+middleware/
+lib/
+scripts/
+keys/
+services/
+config/
+data/
+backend-package-lock.json
+render.yaml
+start-mongodb.sh
+update-env.sh
+update-mongodb-url.sh
+test-api.js
+test-api.sh
+
+# Backend documentation
+BACKEND_README.md
+MONGODB_*.md
+RAILWAY_*.md
+RENDER_*.md
+UPDATE_MONGODB_URL.md
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Node modules
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Build outputs
+dist/
+build/
 
-.vscode/*
-!.vscode/extensions.json
-.idea
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-.env
-node_modules/
-.env
-.env.*
+Thumbs.db
+
+# Logs
+logs/
 *.log
-.DS_Store
+
+# Test results
+test-results/
+artifacts/
+
+# Documentation files (keep only frontend related)
+API_*.md
+*_IMPLEMENTATION.md
+*_FIX.md
+*_SETUP.md
+*_STATUS.md
+*_GUIDE.md
+*_SUMMARY.md
+*_PLAN.md
+*_TEST.md
+*_VERIFICATION.md
+*_COMPLETE.md
+*_READY.md
+*_BUILD.md
+*_DEPLOYMENT.md
+*_DEPLOY.md
+*_FIX_GUIDE.md
+*_INTEGRATION.md
+*_MIGRATION.md
+*_NEXT_STEPS.md
+*_QUICK_START.md
+*_SEED.md
+*_TEST_CREDENTIALS.md
+*_WHAT_WILL_CHANGE.md
 

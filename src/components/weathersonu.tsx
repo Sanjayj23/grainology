@@ -36,7 +36,12 @@ interface WeatherResponse {
   };
 }
 
-export default function Weathersonu() {
+interface WeathersonuProps {
+  embedded?: boolean;
+  hideHeader?: boolean;
+}
+
+export default function Weathersonu({ embedded = false, hideHeader = false }: WeathersonuProps) {
   const [coords, setCoords] = useState<Coordinates | null>(null);
   const [place, setPlace] = useState<Place | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
@@ -114,35 +119,47 @@ export default function Weathersonu() {
     );
   };
 
+  const containerClassName = embedded
+    ? "rounded-[26px] border border-emerald-100/70 bg-[linear-gradient(180deg,#fcfffd_0%,#f3fbf7_100%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+    : "bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500";
+
+  const headerClassName = embedded ? "mb-5 flex items-center justify-between" : "mb-4 flex items-center justify-between";
+  const iconWrapperClassName = embedded ? "rounded-2xl bg-emerald-100 p-3" : "bg-green-100 p-3 rounded-lg";
+  const refreshButtonClassName = embedded
+    ? "rounded-2xl bg-emerald-700 p-2.5 text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+    : "p-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition disabled:opacity-50 disabled:cursor-not-allowed";
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-green-100 p-3 rounded-lg">
-            <Cloud className="w-6 h-6 text-green-600" />
+    <div className={containerClassName}>
+      {!hideHeader && (
+        <div className={headerClassName}>
+          <div className="flex items-center gap-3">
+            <div className={iconWrapperClassName}>
+              <Cloud className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Location & Weather</h3>
+              {loading && !locationDetected && (
+                <p className="text-sm text-gray-600 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Detecting location...
+                </p>
+              )}
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">Location & Weather</h3>
-            {loading && !locationDetected && (
-              <p className="text-sm text-gray-600 flex items-center gap-1">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Detecting location...
-              </p>
-            )}
-          </div>
+          <button
+            onClick={getData}
+            disabled={loading}
+            className={refreshButtonClassName}
+            title="Refresh Location"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
-        <button
-          onClick={getData}
-          disabled={loading}
-          className="p-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Refresh Location"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
+      )}
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mb-4 rounded-[18px] border border-red-200 bg-red-50 p-3">
           <p className="text-red-600 text-sm text-center">{error}</p>
         </div>
       )}
@@ -175,7 +192,7 @@ export default function Weathersonu() {
           )}
 
           {place && (
-            <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+            <div className="mb-4 rounded-[24px] border border-emerald-200 bg-[linear-gradient(135deg,#f2fff8_0%,#eef8ff_100%)] p-5">
               <div className="flex items-center gap-2 mb-1">
                 <MapPin className="w-4 h-4 text-green-600" />
                 <p className="font-semibold text-gray-900">
@@ -188,7 +205,7 @@ export default function Weathersonu() {
 
           {weather && (
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
+              <div className="rounded-[24px] border border-orange-200 bg-[linear-gradient(180deg,#fff8ee_0%,#fff0d7_100%)] p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Thermometer className="w-4 h-4 text-orange-600" />
                   <p className="text-xs text-gray-600">Temperature</p>
@@ -197,7 +214,7 @@ export default function Weathersonu() {
                   {Math.round(weather.temperature)}°C
                 </p>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+              <div className="rounded-[24px] border border-blue-200 bg-[linear-gradient(180deg,#eff5ff_0%,#dbeafe_100%)] p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Wind className="w-4 h-4 text-blue-600" />
                   <p className="text-xs text-gray-600">Wind Speed</p>

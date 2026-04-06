@@ -9,6 +9,7 @@ interface PurchaseOrder {
   expected_price_per_quintal?: number;
   delivery_location: string;
   sauda_confirmation_date?: string;
+  payment_terms?: string;
   status: string;
   notes?: string;
   quality_requirements?: Record<string, string>;
@@ -20,13 +21,31 @@ interface PurchaseOrder {
   createdAt: string;
 }
 
-export default function AllPurchaseOrders() {
+interface AllPurchaseOrdersProps {
+  currentUserRole: string;
+}
+
+export default function AllPurchaseOrders({ currentUserRole }: AllPurchaseOrdersProps) {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [editForm, setEditForm] = useState({
+    commodity: '',
+    variety: '',
+    quantity_mt: '',
+    expected_price_per_quintal: '',
+    delivery_location: '',
+    sauda_confirmation_date: '',
+    payment_terms: 'Against Delivery',
+    status: 'Open',
+    notes: ''
+  });
+  const isSuperAdmin = currentUserRole === 'super_admin';
 
   const statuses = ['All', 'Open', 'In Negotiation', 'Confirmed', 'Completed', 'Cancelled'];
 
@@ -119,6 +138,69 @@ export default function AllPurchaseOrders() {
       setError(err.message);
     } finally {
       setUpdatingStatus(null);
+    }
+  };
+
+  const openOrder = (order: PurchaseOrder) => {
+    setSelectedOrder(order);
+    setIsEditing(false);
+    setEditForm({
+      commodity: order.commodity || '',
+      variety: order.variety || '',
+      quantity_mt: String(order.quantity_mt ?? ''),
+      expected_price_per_quintal: String(order.expected_price_per_quintal ?? ''),
+      delivery_location: order.delivery_location || '',
+      sauda_confirmation_date: order.sauda_confirmation_date ? order.sauda_confirmation_date.slice(0, 10) : '',
+      payment_terms: order.payment_terms || 'Against Delivery',
+      status: order.status || 'Open',
+      notes: order.notes || ''
+    });
+  };
+
+  const saveOrderEdits = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      setSavingOrder(true);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('auth_token');
+
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/purchase-orders/${selectedOrder.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commodity: editForm.commodity.trim(),
+          variety: editForm.variety.trim(),
+          quantity_mt: Number(editForm.quantity_mt) || 0,
+          expected_price_per_quintal: editForm.expected_price_per_quintal ? Number(editForm.expected_price_per_quintal) : undefined,
+          delivery_location: editForm.delivery_location.trim(),
+          sauda_confirmation_date: editForm.sauda_confirmation_date || undefined,
+          payment_terms: editForm.payment_terms,
+          status: editForm.status,
+          notes: editForm.notes.trim() || undefined
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save purchase order changes');
+      }
+
+      const updated = await response.json();
+      setSelectedOrder(updated);
+      setIsEditing(false);
+      await fetchAllPurchaseOrders();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save purchase order');
+    } finally {
+      setSavingOrder(false);
     }
   };
 
@@ -227,11 +309,11 @@ export default function AllPurchaseOrders() {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <button
-                        onClick={() => setSelectedOrder(order)}
+                        onClick={() => openOrder(order)}
                         className="text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
                       >
                         <Eye className="w-4 h-4" />
-                        View
+                        {isSuperAdmin ? 'View / Edit' : 'View'}
                       </button>
                     </td>
                   </tr>
@@ -252,12 +334,23 @@ export default function AllPurchaseOrders() {
           <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-gray-50 border-b border-gray-200 p-6 flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900">Purchase Order Details</h2>
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-3">
+                {isSuperAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing((prev) => !prev)}
+                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                  >
+                    {isEditing ? 'Cancel Edit' : 'Edit Order'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
             <div className="p-8 space-y-8">
@@ -269,38 +362,93 @@ export default function AllPurchaseOrders() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Commodity</p>
-                  <p className="text-lg text-gray-900 font-bold">{selectedOrder.commodity}</p>
+                  {isEditing ? (
+                    <input
+                      value={editForm.commodity}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, commodity: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900 font-bold">{selectedOrder.commodity}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Variety</p>
-                  <p className="text-lg text-gray-900 font-bold">{selectedOrder.variety || '-'}</p>
+                  {isEditing ? (
+                    <input
+                      value={editForm.variety}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, variety: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900 font-bold">{selectedOrder.variety || '-'}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Quantity</p>
-                  <p className="text-lg text-gray-900 font-bold">{selectedOrder.quantity_mt} MT</p>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={editForm.quantity_mt}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, quantity_mt: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900 font-bold">{selectedOrder.quantity_mt} MT</p>
+                  )}
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 font-medium">Rate per MT</p>
-                  <p className="text-lg text-gray-900 font-bold">
-                    ₹{((selectedOrder.expected_price_per_quintal || 0) * 10).toLocaleString()}
-                  </p>
+                  <p className="text-sm text-gray-500 font-medium">Expected Price / Quintal</p>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.expected_price_per_quintal}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, expected_price_per_quintal: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900 font-bold">
+                      ₹{selectedOrder.expected_price_per_quintal?.toLocaleString() || 0}/qt
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Sauda Date</p>
-                  <p className="text-lg text-gray-900 font-bold">
-                    {formatDate(selectedOrder.sauda_confirmation_date, selectedOrder.createdAt)}
-                  </p>
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      value={editForm.sauda_confirmation_date}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, sauda_confirmation_date: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900 font-bold">
+                      {formatDate(selectedOrder.sauda_confirmation_date, selectedOrder.createdAt)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Delivery Location</p>
-                  <p className="text-lg text-gray-900 font-bold">{selectedOrder.delivery_location}</p>
+                  {isEditing ? (
+                    <input
+                      value={editForm.delivery_location}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, delivery_location: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900 font-bold">{selectedOrder.delivery_location}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Status</p>
                   <select
-                    value={selectedOrder.status}
-                    onChange={(e) => updateOrderStatus(selectedOrder.id, e.target.value)}
-                    disabled={updatingStatus === selectedOrder.id}
+                    value={isEditing ? editForm.status : selectedOrder.status}
+                    onChange={(e) => isEditing
+                      ? setEditForm((prev) => ({ ...prev, status: e.target.value }))
+                      : updateOrderStatus(selectedOrder.id, e.target.value)}
+                    disabled={!isEditing && updatingStatus === selectedOrder.id}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white font-bold"
                   >
                     <option value="Open">Open</option>
@@ -313,6 +461,22 @@ export default function AllPurchaseOrders() {
                 <div>
                   <p className="text-sm text-gray-500 font-medium">System Entry Date</p>
                   <p className="text-gray-900 font-bold">{new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Payment Terms</p>
+                  {isEditing ? (
+                    <select
+                      value={editForm.payment_terms}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, payment_terms: e.target.value }))}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                    >
+                      <option value="Advance">Advance</option>
+                      <option value="T+3 Days">T+3 Days</option>
+                      <option value="Against Delivery">Against Delivery</option>
+                    </select>
+                  ) : (
+                    <p className="text-lg text-gray-900 font-bold">{selectedOrder.payment_terms}</p>
+                  )}
                 </div>
               </div>
 
@@ -330,12 +494,34 @@ export default function AllPurchaseOrders() {
                 </div>
               )}
 
-              {selectedOrder.notes && (
+              {(selectedOrder.notes || isEditing) && (
                 <div className="border-t border-gray-200 pt-6">
                   <p className="text-sm text-gray-500 font-medium mb-2">Remarks / Notes</p>
-                  <div className="bg-gray-50 p-4 rounded-lg text-gray-900 border border-gray-100 italic">
-                    {selectedOrder.notes}
-                  </div>
+                  {isEditing ? (
+                    <textarea
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))}
+                      rows={4}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3"
+                    />
+                  ) : (
+                    <div className="bg-gray-50 p-4 rounded-lg text-gray-900 border border-gray-100 italic">
+                      {selectedOrder.notes}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {isEditing && isSuperAdmin && (
+                <div className="border-t border-gray-200 pt-6 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={saveOrderEdits}
+                    disabled={savingOrder}
+                    className="px-5 py-2.5 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+                  >
+                    {savingOrder ? 'Saving...' : 'Save Changes'}
+                  </button>
                 </div>
               )}
             </div>

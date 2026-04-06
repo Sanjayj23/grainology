@@ -14,24 +14,23 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import {
+  analyticsReportTypes,
+  buildAnalyticsFilterParams,
+  exportActiveAnalyticsReport,
+  getAnalyticsFilterSummary,
+  type AnalyticsDateFilters,
+  type AnalyticsOrderType,
+  type AnalyticsReportType
+} from '../../../lib/analyticsExport';
 
 interface Props {
   period: string;
+  orderType: AnalyticsOrderType;
+  filters: AnalyticsDateFilters;
 }
 
-type ReportType = 
-  | 'order-summary' 
-  | 'daily-transaction' 
-  | 'customer-ledger' 
-  | 'commodity-price' 
-  | 'deduction' 
-  | 'warehouse-stock' 
-  | 'vehicle' 
-  | 'quality' 
-  | 'state-summary' 
-  | 'monthly-pl';
-
-const reportTypes: { key: ReportType; label: string; icon: React.ElementType }[] = [
+const reportTypes: { key: AnalyticsReportType; label: string; icon: React.ElementType }[] = [
   { key: 'order-summary', label: 'Order Summary', icon: FileText },
   { key: 'daily-transaction', label: 'Daily Transaction', icon: Calendar },
   { key: 'customer-ledger', label: 'Customer Ledger', icon: Users },
@@ -44,15 +43,20 @@ const reportTypes: { key: ReportType; label: string; icon: React.ElementType }[]
   { key: 'monthly-pl', label: 'Monthly P&L', icon: TrendingUp }
 ];
 
-export default function TabularReports({ period }: Props) {
-  const [activeReport, setActiveReport] = useState<ReportType>('order-summary');
+export default function TabularReports({ period, orderType, filters }: Props) {
+  const [activeReport, setActiveReport] = useState<AnalyticsReportType>('order-summary');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, [filters, period]);
 
   useEffect(() => {
     fetchReport();
-  }, [activeReport, period, pagination.page]);
+  }, [activeReport, filters, orderType, pagination.page, period]);
 
   const fetchReport = async () => {
     try {
@@ -60,23 +64,39 @@ export default function TabularReports({ period }: Props) {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch(
-        `${apiUrl}/analytics/reports/${activeReport}?period=${period}&page=${pagination.page}&limit=${pagination.limit}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
+      const query = new URLSearchParams(
+        Object.entries(buildAnalyticsFilterParams(filters, {
+          orderType,
+          period,
+          page: pagination.page,
+          limit: pagination.limit
+        }))
+          .filter(([, value]) => value !== null && value !== undefined && value !== '')
+          .map(([key, value]) => [key, String(value)])
       );
+
+      const response = await fetch(`${apiUrl}/analytics/reports/${activeReport}?${query.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (response.ok) {
         const result = await response.json();
+        const nextTotalPages = result.pagination?.totalPages || 0;
+        const nextPage = result.pagination?.page || pagination.page;
+
+        if (nextTotalPages > 0 && nextPage > nextTotalPages) {
+          setPagination(prev => ({ ...prev, page: nextTotalPages }));
+          return;
+        }
+
         setData(result.data || []);
         setPagination(prev => ({
           ...prev,
           total: result.pagination?.total || 0,
-          totalPages: result.pagination?.totalPages || 0
+          totalPages: nextTotalPages
         }));
       }
     } catch (error) {
@@ -99,26 +119,22 @@ export default function TabularReports({ period }: Props) {
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const exportToCSV = () => {
-    if (data.length === 0) return;
-
-    const headers = Object.keys(data[0]);
-    const csvContent = [
-      headers.join(','),
-      ...data.map(row => headers.map(h => {
-        const value = row[h];
-        if (typeof value === 'string' && value.includes(',')) {
-          return `"${value}"`;
-        }
-        return value;
-      }).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${activeReport}-${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+  const exportToExcel = async () => {
+    try {
+      setExporting(true);
+      const reportLabel = analyticsReportTypes.find((report) => report.key === activeReport)?.label || activeReport;
+      await exportActiveAnalyticsReport({
+        reportType: activeReport,
+        reportLabel,
+        orderType,
+        filters
+      });
+    } catch (error) {
+      console.error('Failed to export analytics report:', error);
+      alert(error instanceof Error ? error.message : 'Failed to export analytics report');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const renderTable = () => {
@@ -151,7 +167,7 @@ export default function TabularReports({ period }: Props) {
                 <th className="text-left p-3 font-semibold">Type</th>
                 <th className="text-left p-3 font-semibold">Date</th>
                 <th className="text-left p-3 font-semibold">Invoice</th>
-                <th className="text-left p-3 font-semibold">Customer</th>
+                <th className="text-left p-3 font-semibold">Trade Name</th>
                 <th className="text-left p-3 font-semibold">Commodity</th>
                 <th className="text-right p-3 font-semibold">Net Weight (MT)</th>
                 <th className="text-right p-3 font-semibold">Net Amount</th>
@@ -186,8 +202,8 @@ export default function TabularReports({ period }: Props) {
               <tr className="bg-gray-50">
                 <th className="text-left p-3 font-semibold">Date</th>
                 <th className="text-right p-3 font-semibold">Total Orders</th>
-                <th className="text-right p-3 font-semibold text-emerald-600">Sales</th>
-                <th className="text-right p-3 font-semibold text-indigo-600">Purchase</th>
+                {orderType === 'all' && <th className="text-right p-3 font-semibold text-emerald-600">Sales</th>}
+                {orderType === 'all' && <th className="text-right p-3 font-semibold text-indigo-600">Purchase</th>}
                 <th className="text-right p-3 font-semibold">Total Amount</th>
                 <th className="text-right p-3 font-semibold">Total Weight (MT)</th>
               </tr>
@@ -197,8 +213,8 @@ export default function TabularReports({ period }: Props) {
                 <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className="p-3 font-medium">{row.date}</td>
                   <td className="p-3 text-right font-semibold">{row.totalOrders}</td>
-                  <td className="p-3 text-right text-emerald-600">{row.salesOrders}</td>
-                  <td className="p-3 text-right text-indigo-600">{row.purchaseOrders}</td>
+                  {orderType === 'all' && <td className="p-3 text-right text-emerald-600">{row.salesOrders}</td>}
+                  {orderType === 'all' && <td className="p-3 text-right text-indigo-600">{row.purchaseOrders}</td>}
                   <td className="p-3 text-right font-semibold text-green-600">{formatCurrency(row.totalAmount)}</td>
                   <td className="p-3 text-right">{row.totalWeight?.toFixed(3)}</td>
                 </tr>
@@ -212,7 +228,7 @@ export default function TabularReports({ period }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50">
-                <th className="text-left p-3 font-semibold">Customer</th>
+                <th className="text-left p-3 font-semibold">Trade Name</th>
                 <th className="text-left p-3 font-semibold">Email</th>
                 <th className="text-right p-3 font-semibold">Orders</th>
                 <th className="text-right p-3 font-semibold">Total Amount</th>
@@ -272,6 +288,7 @@ export default function TabularReports({ period }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50">
+                {orderType === 'all' && <th className="text-left p-3 font-semibold">Type</th>}
                 <th className="text-left p-3 font-semibold">Invoice</th>
                 <th className="text-left p-3 font-semibold">Date</th>
                 <th className="text-left p-3 font-semibold">Commodity</th>
@@ -285,6 +302,13 @@ export default function TabularReports({ period }: Props) {
             <tbody>
               {data.map((row, index) => (
                 <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  {orderType === 'all' && (
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${row.type === 'Sales' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                        {row.type}
+                      </span>
+                    </td>
+                  )}
                   <td className="p-3 font-mono text-xs">{row.invoice}</td>
                   <td className="p-3">{formatDate(row.date)}</td>
                   <td className="p-3">{row.commodity}</td>
@@ -336,6 +360,7 @@ export default function TabularReports({ period }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50">
+                {orderType === 'all' && <th className="text-left p-3 font-semibold">Type</th>}
                 <th className="text-left p-3 font-semibold">Vehicle No.</th>
                 <th className="text-right p-3 font-semibold">Trips</th>
                 <th className="text-right p-3 font-semibold">Total Weight (MT)</th>
@@ -346,6 +371,13 @@ export default function TabularReports({ period }: Props) {
             <tbody>
               {data.map((row, index) => (
                 <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  {orderType === 'all' && (
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${row.type === 'Sales' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                        {row.type}
+                      </span>
+                    </td>
+                  )}
                   <td className="p-3 font-mono font-medium">{row.vehicleNo}</td>
                   <td className="p-3 text-right">{row.trips}</td>
                   <td className="p-3 text-right">{row.totalWeight?.toFixed(3)}</td>
@@ -362,6 +394,7 @@ export default function TabularReports({ period }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50">
+                {orderType === 'all' && <th className="text-left p-3 font-semibold">Type</th>}
                 <th className="text-left p-3 font-semibold">Invoice</th>
                 <th className="text-left p-3 font-semibold">Commodity</th>
                 <th className="text-right p-3 font-semibold">HLW</th>
@@ -374,6 +407,13 @@ export default function TabularReports({ period }: Props) {
             <tbody>
               {data.map((row, index) => (
                 <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  {orderType === 'all' && (
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${row.type === 'Sales' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                        {row.type}
+                      </span>
+                    </td>
+                  )}
                   <td className="p-3 font-mono text-xs">{row.invoice}</td>
                   <td className="p-3">{row.commodity} <span className="text-gray-500">({row.variety})</span></td>
                   <td className="p-3 text-right">{row.hlw}</td>
@@ -403,8 +443,8 @@ export default function TabularReports({ period }: Props) {
               <tr className="bg-gray-50">
                 <th className="text-left p-3 font-semibold">State</th>
                 <th className="text-right p-3 font-semibold">Total Orders</th>
-                <th className="text-right p-3 font-semibold text-emerald-600">Sales</th>
-                <th className="text-right p-3 font-semibold text-indigo-600">Purchase</th>
+                {orderType === 'all' && <th className="text-right p-3 font-semibold text-emerald-600">Sales</th>}
+                {orderType === 'all' && <th className="text-right p-3 font-semibold text-indigo-600">Purchase</th>}
                 <th className="text-right p-3 font-semibold">Total Amount</th>
                 <th className="text-right p-3 font-semibold">Weight (MT)</th>
               </tr>
@@ -414,8 +454,8 @@ export default function TabularReports({ period }: Props) {
                 <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className="p-3 font-medium">{row.state}</td>
                   <td className="p-3 text-right font-semibold">{row.totalOrders}</td>
-                  <td className="p-3 text-right text-emerald-600">{row.salesOrders} ({formatCurrency(row.salesAmount)})</td>
-                  <td className="p-3 text-right text-indigo-600">{row.purchaseOrders} ({formatCurrency(row.purchaseAmount)})</td>
+                  {orderType === 'all' && <td className="p-3 text-right text-emerald-600">{row.salesOrders} ({formatCurrency(row.salesAmount)})</td>}
+                  {orderType === 'all' && <td className="p-3 text-right text-indigo-600">{row.purchaseOrders} ({formatCurrency(row.purchaseAmount)})</td>}
                   <td className="p-3 text-right font-semibold text-green-600">{formatCurrency(row.totalAmount)}</td>
                   <td className="p-3 text-right">{row.totalWeight?.toFixed(3)}</td>
                 </tr>
@@ -493,16 +533,22 @@ export default function TabularReports({ period }: Props) {
       {/* Report Table */}
       <div className="bg-white rounded-xl shadow-lg">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">
-            {reportTypes.find(r => r.key === activeReport)?.label} Report
-          </h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800">
+              {reportTypes.find(r => r.key === activeReport)?.label} Report
+            </h3>
+            <p className="text-sm text-gray-500">
+              {orderType === 'sales' ? 'Sales only' : 'Purchase only'}
+              {` • ${getAnalyticsFilterSummary(filters)}`}
+            </p>
+          </div>
           <button
-            onClick={exportToCSV}
-            disabled={data.length === 0}
+            onClick={exportToExcel}
+            disabled={data.length === 0 || exporting}
             className="px-4 py-2 bg-emerald-600 text-white rounded-lg flex items-center gap-2 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
-            Export CSV
+            {exporting ? 'Exporting Excel...' : 'Export Excel'}
           </button>
         </div>
 

@@ -177,6 +177,12 @@ export default function ConfirmedOrders({ userId, userName }: ConfirmedOrdersPro
     }).format(amount);
   };
 
+  const toUpperText = (value?: string | null) => String(value ?? '').trim().toUpperCase();
+  const toUpperOrNA = (value?: string | null) => {
+    const normalized = toUpperText(value);
+    return normalized || 'N/A';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -270,7 +276,7 @@ export default function ConfirmedOrders({ userId, userName }: ConfirmedOrdersPro
                       {formatDate(order.transaction_date)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {order.commodity} {order.variety && `(${order.variety})`}
+                      {toUpperText(order.commodity)} {toUpperText(order.variety) && `(${toUpperText(order.variety)})`}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {order.vehicle_no}
@@ -346,7 +352,7 @@ export default function ConfirmedOrders({ userId, userName }: ConfirmedOrdersPro
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-600">State</label>
-                      <p className="text-gray-900">{selectedOrder.state || 'N/A'}</p>
+                      <p className="text-gray-900">{toUpperOrNA(selectedOrder.state)}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-600">
@@ -383,11 +389,11 @@ export default function ConfirmedOrders({ userId, userName }: ConfirmedOrdersPro
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="text-sm font-medium text-gray-600">Commodity</label>
-                      <p className="text-gray-900 font-medium">{selectedOrder.commodity}</p>
+                      <p className="text-gray-900 font-medium">{toUpperOrNA(selectedOrder.commodity)}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-600">Variety</label>
-                      <p className="text-gray-900">{selectedOrder.variety || 'N/A'}</p>
+                      <p className="text-gray-900">{toUpperOrNA(selectedOrder.variety)}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-600">Gate Pass No.</label>
@@ -582,4 +588,3 @@ export default function ConfirmedOrders({ userId, userName }: ConfirmedOrdersPro
     </div>
   );
 }
-

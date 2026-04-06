@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Package, Plus, Edit2, Trash2, X, Save, AlertCircle } from 'lucide-react';
 import { useToastContext } from '../../contexts/ToastContext';
+import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 
 interface Commodity {
   id: string;
@@ -8,6 +9,8 @@ interface Commodity {
   description?: string;
   category?: string;
   is_active: boolean;
+  approval_status?: 'pending' | 'approved' | 'declined';
+  declined_reason?: string;
 }
 
 interface Variety {
@@ -16,10 +19,33 @@ interface Variety {
   variety_name: string;
   description?: string;
   is_active: boolean;
+  approval_status?: 'pending' | 'approved' | 'declined';
+  declined_reason?: string;
 }
 
-export default function CommodityVarietyManagement() {
+const toUpperCaseValue = (value: string) => value.toUpperCase();
+const toUpperCaseLabel = (value?: string) => (value ? value.toUpperCase() : '');
+const normalizeTextPayload = (value: string) => toUpperCaseValue(value.trim());
+
+interface CommodityVarietyManagementProps {
+  currentUserRole?: string;
+}
+
+const getApprovalBadgeClass = (status?: string) => {
+  if (status === 'approved') return 'bg-green-100 text-green-800';
+  if (status === 'declined') return 'bg-red-100 text-red-800';
+  return 'bg-amber-100 text-amber-800';
+};
+
+const getApprovalLabel = (status?: string) => {
+  if (status === 'approved') return 'APPROVED';
+  if (status === 'declined') return 'DECLINED';
+  return 'PENDING';
+};
+
+export default function CommodityVarietyManagement({ currentUserRole }: CommodityVarietyManagementProps) {
   const { showSuccess, showError } = useToastContext();
+  const canApprove = currentUserRole === 'super_admin';
   const [commodities, setCommodities] = useState<Commodity[]>([]);
   const [varieties, setVarieties] = useState<Variety[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,12 +69,7 @@ export default function CommodityVarietyManagement() {
     description: ''
   });
 
-  useEffect(() => {
-    loadCommodities();
-    loadVarieties();
-  }, []);
-
-  const loadCommodities = async () => {
+  const loadCommodities = useCallback(async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const token = localStorage.getItem('auth_token');
@@ -71,9 +92,9 @@ export default function CommodityVarietyManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
 
-  const loadVarieties = async () => {
+  const loadVarieties = useCallback(async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const token = localStorage.getItem('auth_token');
@@ -94,11 +115,20 @@ export default function CommodityVarietyManagement() {
     } catch (error: any) {
       showError(error.message || 'Failed to load varieties');
     }
-  };
+  }, [showError]);
+
+  useLiveRefresh(loadCommodities, 10000, [loadCommodities]);
+  useLiveRefresh(loadVarieties, 10000, [loadVarieties]);
 
   const handleCommoditySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commodityForm.name.trim()) {
+    const normalizedCommodityForm = {
+      name: normalizeTextPayload(commodityForm.name),
+      description: commodityForm.description.trim() ? normalizeTextPayload(commodityForm.description) : '',
+      category: commodityForm.category.trim() ? normalizeTextPayload(commodityForm.category) : ''
+    };
+
+    if (!normalizedCommodityForm.name) {
       showError('Commodity name is required');
       return;
     }
@@ -122,7 +152,7 @@ export default function CommodityVarietyManagement() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(commodityForm)
+        body: JSON.stringify(normalizedCommodityForm)
       });
 
       if (!response.ok) {
@@ -142,7 +172,13 @@ export default function CommodityVarietyManagement() {
 
   const handleVarietySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!varietyForm.commodity_name.trim() || !varietyForm.variety_name.trim()) {
+    const normalizedVarietyForm = {
+      commodity_name: normalizeTextPayload(varietyForm.commodity_name),
+      variety_name: normalizeTextPayload(varietyForm.variety_name),
+      description: varietyForm.description.trim() ? normalizeTextPayload(varietyForm.description) : ''
+    };
+
+    if (!normalizedVarietyForm.commodity_name || !normalizedVarietyForm.variety_name) {
       showError('Commodity and variety names are required');
       return;
     }
@@ -166,7 +202,7 @@ export default function CommodityVarietyManagement() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(varietyForm)
+        body: JSON.stringify(normalizedVarietyForm)
       });
 
       if (!response.ok) {
@@ -212,6 +248,46 @@ export default function CommodityVarietyManagement() {
     }
   };
 
+  const handleCommodityApproval = async (commodityId: string, status: 'approved' | 'declined') => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        showError('Authentication required');
+        return;
+      }
+
+      const declineReasonInput = status === 'declined'
+        ? window.prompt('Enter decline reason:', '')
+        : null;
+      if (status === 'declined' && declineReasonInput === null) return;
+      const reason = (declineReasonInput || '').trim();
+      if (status === 'declined' && !reason) {
+        showError('Decline reason is required');
+        return;
+      }
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${apiUrl}/commodity-master/${commodityId}/approval`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status, reason })
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update approval');
+      }
+
+      showSuccess(`Commodity ${status === 'approved' ? 'approved' : 'declined'} successfully`);
+      loadCommodities();
+    } catch (error: any) {
+      showError(error.message || 'Failed to update commodity approval');
+    }
+  };
+
   const handleDeleteVariety = async (id: string) => {
     if (!confirm('Are you sure you want to deactivate this variety? It will be hidden from selection but existing records will remain.')) {
       return;
@@ -240,12 +316,52 @@ export default function CommodityVarietyManagement() {
     }
   };
 
+  const handleVarietyApproval = async (varietyId: string, status: 'approved' | 'declined') => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        showError('Authentication required');
+        return;
+      }
+
+      const declineReasonInput = status === 'declined'
+        ? window.prompt('Enter decline reason:', '')
+        : null;
+      if (status === 'declined' && declineReasonInput === null) return;
+      const reason = (declineReasonInput || '').trim();
+      if (status === 'declined' && !reason) {
+        showError('Decline reason is required');
+        return;
+      }
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${apiUrl}/variety-master/${varietyId}/approval`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status, reason })
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update approval');
+      }
+
+      showSuccess(`Variety ${status === 'approved' ? 'approved' : 'declined'} successfully`);
+      loadVarieties();
+    } catch (error: any) {
+      showError(error.message || 'Failed to update variety approval');
+    }
+  };
+
   const openEditCommodity = (commodity: Commodity) => {
     setEditingCommodity(commodity);
     setCommodityForm({
-      name: commodity.name,
-      description: commodity.description || '',
-      category: commodity.category || ''
+      name: toUpperCaseLabel(commodity.name),
+      description: toUpperCaseLabel(commodity.description),
+      category: toUpperCaseLabel(commodity.category)
     });
     setShowCommodityForm(true);
   };
@@ -253,9 +369,9 @@ export default function CommodityVarietyManagement() {
   const openEditVariety = (variety: Variety) => {
     setEditingVariety(variety);
     setVarietyForm({
-      commodity_name: variety.commodity_name,
-      variety_name: variety.variety_name,
-      description: variety.description || ''
+      commodity_name: toUpperCaseLabel(variety.commodity_name),
+      variety_name: toUpperCaseLabel(variety.variety_name),
+      description: toUpperCaseLabel(variety.description)
     });
     setShowVarietyForm(true);
   };
@@ -352,7 +468,7 @@ export default function CommodityVarietyManagement() {
                   <input
                     type="text"
                     value={commodityForm.name}
-                    onChange={(e) => setCommodityForm({ ...commodityForm, name: e.target.value })}
+                    onChange={(e) => setCommodityForm({ ...commodityForm, name: toUpperCaseValue(e.target.value) })}
                     required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="e.g., Paddy, Wheat, Maize"
@@ -362,7 +478,7 @@ export default function CommodityVarietyManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                   <textarea
                     value={commodityForm.description}
-                    onChange={(e) => setCommodityForm({ ...commodityForm, description: e.target.value })}
+                    onChange={(e) => setCommodityForm({ ...commodityForm, description: toUpperCaseValue(e.target.value) })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     rows={2}
                     placeholder="Optional description"
@@ -373,7 +489,7 @@ export default function CommodityVarietyManagement() {
                   <input
                     type="text"
                     value={commodityForm.category}
-                    onChange={(e) => setCommodityForm({ ...commodityForm, category: e.target.value })}
+                    onChange={(e) => setCommodityForm({ ...commodityForm, category: toUpperCaseValue(e.target.value) })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="e.g., Cereal, Pulses"
                   />
@@ -410,37 +526,72 @@ export default function CommodityVarietyManagement() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {activeCommodities.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                       No commodities found. Add your first commodity above.
                     </td>
                   </tr>
                 ) : (
                   activeCommodities.map((commodity) => (
                     <tr key={commodity.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{commodity.name}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">{commodity.category || '-'}</td>
-                      <td className="px-4 py-3 text-gray-600">{commodity.description || '-'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{toUpperCaseLabel(commodity.name)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">{toUpperCaseLabel(commodity.category) || '-'}</td>
+                      <td className="px-4 py-3 text-gray-600">{toUpperCaseLabel(commodity.description) || '-'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                           Active
                         </span>
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full w-fit ${getApprovalBadgeClass(commodity.approval_status)}`}>
+                            {getApprovalLabel(commodity.approval_status)}
+                          </span>
+                          {commodity.approval_status === 'declined' && commodity.declined_reason && (
+                            <span className="text-xs text-red-700 max-w-xs truncate" title={commodity.declined_reason}>
+                              {commodity.declined_reason}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                        {canApprove && commodity.approval_status === 'pending' && (
+                          <button
+                            onClick={() => handleCommodityApproval(commodity.id, 'approved')}
+                            className="text-green-700 hover:text-green-900 mr-3"
+                            title="Approve"
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {canApprove && commodity.approval_status === 'pending' && (
+                          <button
+                            onClick={() => handleCommodityApproval(commodity.id, 'declined')}
+                            className="text-amber-700 hover:text-amber-900 mr-3"
+                            title="Decline"
+                          >
+                            Decline
+                          </button>
+                        )}
                         <button
                           onClick={() => openEditCommodity(commodity)}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
+                          disabled={currentUserRole === 'admin' && commodity.approval_status === 'approved'}
+                          className="text-blue-600 hover:text-blue-900 mr-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={currentUserRole === 'admin' && commodity.approval_status === 'approved' ? 'Approved commodity cannot be edited by Admin' : 'Edit'}
                         >
                           <Edit2 className="w-4 h-4 inline" />
                         </button>
                         <button
                           onClick={() => handleDeleteCommodity(commodity.id)}
-                          className="text-red-600 hover:text-red-900"
+                          disabled={currentUserRole === 'admin' && commodity.approval_status === 'approved'}
+                          className="text-red-600 hover:text-red-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={currentUserRole === 'admin' && commodity.approval_status === 'approved' ? 'Approved commodity cannot be deactivated by Admin' : 'Deactivate'}
                         >
                           <Trash2 className="w-4 h-4 inline" />
                         </button>
@@ -496,13 +647,13 @@ export default function CommodityVarietyManagement() {
                   </label>
                   <select
                     value={varietyForm.commodity_name}
-                    onChange={(e) => setVarietyForm({ ...varietyForm, commodity_name: e.target.value })}
+                    onChange={(e) => setVarietyForm({ ...varietyForm, commodity_name: toUpperCaseValue(e.target.value) })}
                     required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   >
                     <option value="">Select Commodity</option>
                     {activeCommodities.map((c) => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
+                      <option key={c.id} value={toUpperCaseLabel(c.name)}>{toUpperCaseLabel(c.name)}</option>
                     ))}
                   </select>
                 </div>
@@ -513,7 +664,7 @@ export default function CommodityVarietyManagement() {
                   <input
                     type="text"
                     value={varietyForm.variety_name}
-                    onChange={(e) => setVarietyForm({ ...varietyForm, variety_name: e.target.value })}
+                    onChange={(e) => setVarietyForm({ ...varietyForm, variety_name: toUpperCaseValue(e.target.value) })}
                     required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="e.g., Katarni, Sonam, Milling Quality"
@@ -523,7 +674,7 @@ export default function CommodityVarietyManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                   <textarea
                     value={varietyForm.description}
-                    onChange={(e) => setVarietyForm({ ...varietyForm, description: e.target.value })}
+                    onChange={(e) => setVarietyForm({ ...varietyForm, description: toUpperCaseValue(e.target.value) })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     rows={2}
                     placeholder="Optional description"
@@ -561,44 +712,81 @@ export default function CommodityVarietyManagement() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variety</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {activeVarieties.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                       No varieties found. Add your first variety above.
                     </td>
                   </tr>
                 ) : (
                   activeVarieties
                     .sort((a, b) => {
-                      if (a.commodity_name !== b.commodity_name) {
-                        return a.commodity_name.localeCompare(b.commodity_name);
+                      const aCommodity = toUpperCaseLabel(a.commodity_name);
+                      const bCommodity = toUpperCaseLabel(b.commodity_name);
+                      if (aCommodity !== bCommodity) {
+                        return aCommodity.localeCompare(bCommodity);
                       }
-                      return a.variety_name.localeCompare(b.variety_name);
+                      return toUpperCaseLabel(a.variety_name).localeCompare(toUpperCaseLabel(b.variety_name));
                     })
                     .map((variety) => (
                       <tr key={variety.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{variety.commodity_name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-900">{variety.variety_name}</td>
-                        <td className="px-4 py-3 text-gray-600">{variety.description || '-'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{toUpperCaseLabel(variety.commodity_name)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-900">{toUpperCaseLabel(variety.variety_name)}</td>
+                        <td className="px-4 py-3 text-gray-600">{toUpperCaseLabel(variety.description) || '-'}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                             Active
                           </span>
                         </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex flex-col gap-1">
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full w-fit ${getApprovalBadgeClass(variety.approval_status)}`}>
+                              {getApprovalLabel(variety.approval_status)}
+                            </span>
+                            {variety.approval_status === 'declined' && variety.declined_reason && (
+                              <span className="text-xs text-red-700 max-w-xs truncate" title={variety.declined_reason}>
+                                {variety.declined_reason}
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                          {canApprove && variety.approval_status === 'pending' && (
+                            <button
+                              onClick={() => handleVarietyApproval(variety.id, 'approved')}
+                              className="text-green-700 hover:text-green-900 mr-3"
+                              title="Approve"
+                            >
+                              Approve
+                            </button>
+                          )}
+                          {canApprove && variety.approval_status === 'pending' && (
+                            <button
+                              onClick={() => handleVarietyApproval(variety.id, 'declined')}
+                              className="text-amber-700 hover:text-amber-900 mr-3"
+                              title="Decline"
+                            >
+                              Decline
+                            </button>
+                          )}
                           <button
                             onClick={() => openEditVariety(variety)}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
+                            disabled={currentUserRole === 'admin' && variety.approval_status === 'approved'}
+                            className="text-blue-600 hover:text-blue-900 mr-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={currentUserRole === 'admin' && variety.approval_status === 'approved' ? 'Approved variety cannot be edited by Admin' : 'Edit'}
                           >
                             <Edit2 className="w-4 h-4 inline" />
                           </button>
                           <button
                             onClick={() => handleDeleteVariety(variety.id)}
-                            className="text-red-600 hover:text-red-900"
+                            disabled={currentUserRole === 'admin' && variety.approval_status === 'approved'}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={currentUserRole === 'admin' && variety.approval_status === 'approved' ? 'Approved variety cannot be deactivated by Admin' : 'Deactivate'}
                           >
                             <Trash2 className="w-4 h-4 inline" />
                           </button>
@@ -614,4 +802,3 @@ export default function CommodityVarietyManagement() {
     </div>
   );
 }
-

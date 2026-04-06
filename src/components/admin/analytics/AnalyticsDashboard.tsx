@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -15,24 +15,25 @@ import CommodityAnalysis from './CommodityAnalysis';
 import CustomerAnalysis from './CustomerAnalysis';
 import ComparativeReports from './ComparativeReports';
 import TabularReports from './TabularReports';
+import {
+  getAnalyticsMonthOptions,
+  getAnalyticsWeekOptions,
+  exportAnalyticsWorkbook,
+  getAnalyticsFilterSummary,
+  getAnalyticsYearOptions,
+  type AnalyticsDateFilters,
+  type AnalyticsFilterMode,
+  type AnalyticsOrderType
+} from '../../../lib/analyticsExport';
 
 type TabType = 'time-based' | 'commodity' | 'customer' | 'comparison' | 'reports';
 
 const tabs: { key: TabType; label: string; icon: React.ElementType; color: string }[] = [
   { key: 'time-based', label: 'Time Analysis', icon: TrendingUp, color: 'blue' },
   { key: 'commodity', label: 'Commodity', icon: Package, color: 'emerald' },
-  { key: 'customer', label: 'Customer/Seller', icon: Users, color: 'purple' },
+  { key: 'customer', label: 'Trade Name', icon: Users, color: 'purple' },
   { key: 'comparison', label: 'Comparative', icon: GitCompare, color: 'amber' },
   { key: 'reports', label: 'Table Reports', icon: FileText, color: 'indigo' }
-];
-
-const periods = [
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'quarter', label: 'This Quarter' },
-  { value: 'year', label: 'This Year' },
-  { value: 'all', label: 'All Time' }
 ];
 
 const groupByOptions = [
@@ -43,19 +44,58 @@ const groupByOptions = [
 
 export default function AnalyticsDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('time-based');
-  const [period, setPeriod] = useState('all');
-  const [groupBy, setGroupBy] = useState('day');
-  const [customerType, setCustomerType] = useState<'sales' | 'purchase'>('sales');
+  const [groupBy, setGroupBy] = useState('month');
+  const [orderType, setOrderType] = useState<AnalyticsOrderType>('purchase');
+  const currentYear = new Date().getFullYear();
+  const [filterMode, setFilterMode] = useState<AnalyticsFilterMode>('year');
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [startDate, setStartDate] = useState<string>(`${currentYear}-01-01`);
+  const [endDate, setEndDate] = useState<string>(`${currentYear}-12-31`);
+  const [compareYear, setCompareYear] = useState<number>(currentYear - 1);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const years = getAnalyticsYearOptions();
+  const monthOptions = getAnalyticsMonthOptions();
+  const weekOptions = getAnalyticsWeekOptions();
+  const analyticsFilters: AnalyticsDateFilters = {
+    filterMode,
+    year: selectedYear,
+    month: selectedMonth,
+    week: selectedWeek,
+    startDate,
+    endDate
+  };
+
+  useEffect(() => {
+    if (compareYear === selectedYear) {
+      const fallbackYear = [...years].reverse().find((year) => year !== selectedYear);
+      if (fallbackYear) {
+        setCompareYear(fallbackYear);
+      }
+    }
+  }, [compareYear, selectedYear, years]);
 
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
   };
 
-  const getTabColor = (tabKey: TabType) => {
-    const tab = tabs.find(t => t.key === tabKey);
-    if (!tab) return 'blue';
-    return tab.color;
+  const handleExportAllData = async () => {
+    try {
+      setExporting(true);
+      await exportAnalyticsWorkbook({
+        orderType,
+        filters: analyticsFilters,
+        compareYear,
+        groupBy
+      });
+    } catch (error) {
+      console.error('Failed to export analytics workbook:', error);
+      alert(error instanceof Error ? error.message : 'Failed to export analytics workbook');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -68,22 +108,83 @@ export default function AnalyticsDashboard() {
             Analytics Dashboard
           </h1>
           <p className="text-gray-600 mt-1">Comprehensive insights from your orders data</p>
+          <p className="text-sm text-gray-500 mt-1">{getAnalyticsFilterSummary(analyticsFilters)}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Period Selector */}
+          <select
+            value={orderType}
+            onChange={(e) => setOrderType(e.target.value as AnalyticsOrderType)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="purchase">Purchase Analytics</option>
+            <option value="sales">Sales Analytics</option>
+          </select>
+
+          <select
+            value={filterMode}
+            onChange={(e) => setFilterMode(e.target.value as AnalyticsFilterMode)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="year">Year Wise</option>
+            <option value="month">Month Wise</option>
+            <option value="week">Week Wise</option>
+            <option value="date-range">Date Range Wise</option>
+          </select>
+
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-500" />
             <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              {periods.map(p => (
-                <option key={p.value} value={p.value}>{p.label}</option>
+              {years.map((year) => (
+                <option key={year} value={year}>{year}</option>
               ))}
             </select>
           </div>
+
+          {filterMode === 'month' && (
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {monthOptions.map((month) => (
+                <option key={month.value} value={month.value}>{month.label}</option>
+              ))}
+            </select>
+          )}
+
+          {filterMode === 'week' && (
+            <select
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(Number(e.target.value))}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {weekOptions.map((week) => (
+                <option key={week.value} value={week.value}>{week.label}</option>
+              ))}
+            </select>
+          )}
+
+          {filterMode === 'date-range' && (
+            <>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </>
+          )}
 
           {/* Group By (for time-based) */}
           {activeTab === 'time-based' && (
@@ -98,15 +199,15 @@ export default function AnalyticsDashboard() {
             </select>
           )}
 
-          {/* Customer Type (for customer analysis) */}
-          {activeTab === 'customer' && (
+          {activeTab === 'comparison' && (
             <select
-              value={customerType}
-              onChange={(e) => setCustomerType(e.target.value as 'sales' | 'purchase')}
+              value={compareYear}
+              onChange={(e) => setCompareYear(Number(e.target.value))}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="sales">Sales Customers</option>
-              <option value="purchase">Purchase Suppliers</option>
+              {years.filter((year) => year !== selectedYear).map((year) => (
+                <option key={year} value={year}>Compare {year}</option>
+              ))}
             </select>
           )}
 
@@ -151,23 +252,23 @@ export default function AnalyticsDashboard() {
       {/* Tab Content */}
       <div key={refreshKey}>
         {activeTab === 'time-based' && (
-          <TimeBasedCharts period={period} groupBy={groupBy} />
+          <TimeBasedCharts period="all" groupBy={groupBy} orderType={orderType} filters={analyticsFilters} />
         )}
 
         {activeTab === 'commodity' && (
-          <CommodityAnalysis period={period} />
+          <CommodityAnalysis period="all" orderType={orderType} filters={analyticsFilters} />
         )}
 
         {activeTab === 'customer' && (
-          <CustomerAnalysis period={period} type={customerType} />
+          <CustomerAnalysis period="all" type={orderType} filters={analyticsFilters} />
         )}
 
         {activeTab === 'comparison' && (
-          <ComparativeReports period={period} />
+          <ComparativeReports period="all" orderType={orderType} filters={analyticsFilters} compareYear={compareYear} />
         )}
 
         {activeTab === 'reports' && (
-          <TabularReports period={period} />
+          <TabularReports period="all" orderType={orderType} filters={analyticsFilters} />
         )}
       </div>
 
@@ -177,12 +278,16 @@ export default function AnalyticsDashboard() {
           <div>
             <h3 className="text-lg font-semibold">Need Custom Reports?</h3>
             <p className="text-blue-100 text-sm mt-1">
-              Export any report to CSV/Excel for further analysis in your preferred tools
+              Download the exact analytics dashboard data in Excel with the active dataset and date filters
             </p>
           </div>
-          <button className="px-6 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors flex items-center gap-2">
+          <button
+            onClick={handleExportAllData}
+            disabled={exporting}
+            className="px-6 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
             <Download className="w-5 h-5" />
-            Export All Data
+            {exporting ? 'Exporting Excel...' : 'Export All Data'}
           </button>
         </div>
       </div>

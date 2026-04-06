@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Profile, api } from '../lib/client';
-import { LayoutDashboard, LogOut, Users, Package, Truck, TrendingUp, Cloud, FileText, ShoppingBag, Menu, X, BarChart3, MapPin } from 'lucide-react';
+import { LayoutDashboard, LogOut, Users, Package, Truck, TrendingUp, Cloud, FileText, ShoppingBag, Menu, X, BarChart3, MapPin, Settings, MessageSquare } from 'lucide-react';
 // Commented out unused imports - can be restored if needed
 // import { ClipboardCheck, Calculator, PackageCheck } from 'lucide-react';
 import EnhancedDashboard from './admin/EnhancedDashboard';
@@ -20,6 +20,8 @@ import WarehouseManagement from './admin/WarehouseManagement';
 import LocationManagement from './admin/LocationManagement';
 import { AnalyticsDashboard } from './admin/analytics';
 import { DashboardCache } from '../lib/sessionStorage';
+import SiteSettingsPanel from './admin/SiteSettingsPanel';
+import ContactInquiriesPanel from './admin/ContactInquiriesPanel';
 // Commented out unused component imports - can be restored if needed
 // import OrderManagementEnhanced from './admin/OrderManagementEnhanced';
 // import OfferOversight from './admin/OfferOversight';
@@ -30,9 +32,9 @@ import { DashboardCache } from '../lib/sessionStorage';
 // import CustomerCommoditySales from './admin/CustomerCommoditySales';
 // import SupplyTransactionsView from './admin/SupplyTransactionsView';
 
-type View = 'dashboard' | 'orders' | 'users' | 'offers' | 'quality' | 'logistics' | 'mandi' | 'ceda-agmarknet' | 'weather' | 'reports' | 'supplier-commodity' | 'customer-sales' | 'logistics-providers' | 'supply-transactions' | 'all-purchase-orders' | 'all-sale-orders' | 'confirm-sales-order' | 'confirm-purchase-order' | 'all-confirmed-orders' | 'commodity-variety-management' | 'warehouse-management' | 'location-management' | 'analytics';
+type View = 'dashboard' | 'orders' | 'users' | 'offers' | 'quality' | 'logistics' | 'mandi' | 'ceda-agmarknet' | 'weather' | 'reports' | 'supplier-commodity' | 'customer-sales' | 'logistics-providers' | 'supply-transactions' | 'all-purchase-orders' | 'all-sale-orders' | 'confirm-sales-order' | 'confirm-purchase-order' | 'all-confirmed-orders' | 'commodity-variety-management' | 'warehouse-management' | 'location-management' | 'analytics' | 'site-settings' | 'contact-inquiries';
 
-const VIEW_KEYS: View[] = ['dashboard', 'orders', 'users', 'offers', 'quality', 'logistics', 'mandi', 'ceda-agmarknet', 'weather', 'reports', 'supplier-commodity', 'customer-sales', 'logistics-providers', 'supply-transactions', 'all-purchase-orders', 'all-sale-orders', 'confirm-sales-order', 'confirm-purchase-order', 'all-confirmed-orders', 'commodity-variety-management', 'warehouse-management', 'location-management', 'analytics'];
+const VIEW_KEYS: View[] = ['dashboard', 'orders', 'users', 'offers', 'quality', 'logistics', 'mandi', 'ceda-agmarknet', 'weather', 'reports', 'supplier-commodity', 'customer-sales', 'logistics-providers', 'supply-transactions', 'all-purchase-orders', 'all-sale-orders', 'confirm-sales-order', 'confirm-purchase-order', 'all-confirmed-orders', 'commodity-variety-management', 'warehouse-management', 'location-management', 'analytics', 'site-settings', 'contact-inquiries'];
 function isView(s: string | null): s is View {
   return s !== null && VIEW_KEYS.includes(s as View);
 }
@@ -40,12 +42,19 @@ function isView(s: string | null): s is View {
 interface AdminPanelProps {
   profile: Profile;
   onSignOut: () => void;
+  signingOut: boolean;
 }
 
 const DEFAULT_ADMIN_STATS = {
   totalUsers: 0,
   totalFarmers: 0,
   totalTraders: 0,
+  totalCorporates: 0,
+  totalFpos: 0,
+  totalMillers: 0,
+  totalFinancers: 0,
+  totalAdmins: 0,
+  totalSuperAdmins: 0,
   verifiedUsers: 0,
   pendingApprovalUsers: 0,
   locationPendingCount: 0,
@@ -70,7 +79,7 @@ const normalizeAdminStats = (statsLike?: any) => ({
   ...(statsLike || {}),
 });
 
-export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
+export default function AdminPanel({ profile, onSignOut, signingOut }: AdminPanelProps) {
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -81,6 +90,7 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
       </div>
     );
   }
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const viewFromUrl = searchParams.get('view');
   const [currentView, setCurrentView] = useState<View>(() => (isView(viewFromUrl) ? viewFromUrl : 'dashboard'));
@@ -150,6 +160,12 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
         totalUsers: statsData.totalUsers || 0,
         totalFarmers: statsData.totalFarmers || 0,
         totalTraders: statsData.totalTraders || 0,
+        totalCorporates: statsData.totalCorporates || 0,
+        totalFpos: statsData.totalFpos || 0,
+        totalMillers: statsData.totalMillers || 0,
+        totalFinancers: statsData.totalFinancers || 0,
+        totalAdmins: statsData.totalAdmins || 0,
+        totalSuperAdmins: statsData.totalSuperAdmins || 0,
         verifiedUsers: statsData.verifiedUsers || 0,
         pendingApprovalUsers: statsData.pendingApprovalUsers ?? 0,
         locationPendingCount: statsData.locationPendingCount ?? 0,
@@ -323,6 +339,11 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
     setIsMobileMenuOpen(false);
   };
 
+  const navButtonClass = (view: View) =>
+    `w-full flex items-center justify-start gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
+      currentView === view ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50'
+    }`;
+
   const handleUserUpdated = useCallback((userId: string, updates: Partial<Profile>) => {
     if (!userId) return;
     setUsers(prev => {
@@ -337,7 +358,7 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <aside className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl flex flex-col transform transition-transform duration-300 ease-in-out ${
+      <aside className={`fixed md:static inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl flex flex-col transform transition-transform duration-300 ease-in-out ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         <div className="p-6 border-b border-slate-700 flex-shrink-0">
@@ -360,183 +381,127 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
           {/* 1. Dashboard */}
           <button
             onClick={() => handleViewChange('dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'dashboard'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('dashboard')}
           >
             <LayoutDashboard className="w-5 h-5" />
-            <span className="font-medium">Dashboard</span>
+            <span className="font-medium text-sm">Dashboard</span>
           </button>
 
           {/* Analytics Dashboard */}
           <button
             onClick={() => handleViewChange('analytics')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'analytics'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('analytics')}
           >
             <BarChart3 className="w-5 h-5" />
-            <span className="font-medium">Analytics & Reports</span>
+            <span className="font-medium text-sm">Analytics & Reports</span>
           </button>
 
           {/* 2. User Management */}
           <button
             onClick={() => handleViewChange('users')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'users'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('users')}
           >
             <Users className="w-5 h-5" />
-            <span className="font-medium">User Management</span>
+            <span className="font-medium text-sm">User Management</span>
           </button>
 
           {/* 3. All Purchase Orders */}
           <button
             onClick={() => handleViewChange('all-purchase-orders')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'all-purchase-orders'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('all-purchase-orders')}
           >
             <Package className="w-5 h-5" />
-            <span className="font-medium">All Purchase Orders</span>
+            <span className="font-medium text-sm">All Purchase Orders</span>
           </button>
 
           {/* 4. All Sale Orders */}
           <button
             onClick={() => handleViewChange('all-sale-orders')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'all-sale-orders'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('all-sale-orders')}
           >
             <ShoppingBag className="w-5 h-5" />
-            <span className="font-medium">All Sale Orders</span>
+            <span className="font-medium text-sm">All Sale Orders</span>
           </button>
 
           {/* 5. Confirm Sales Order Form */}
           <button
             onClick={() => handleViewChange('confirm-sales-order')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'confirm-sales-order'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('confirm-sales-order')}
           >
             <FileText className="w-5 h-5" />
-            <span className="font-medium">Confirm Sales Order</span>
+            <span className="font-medium text-sm">Confirm Sales Order</span>
           </button>
 
           {/* 6. Confirm Purchase Order Form */}
           <button
             onClick={() => handleViewChange('confirm-purchase-order')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'confirm-purchase-order'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('confirm-purchase-order')}
           >
             <FileText className="w-5 h-5" />
-            <span className="font-medium">Confirm Purchase Order</span>
+            <span className="font-medium text-sm">Confirm Purchase Order</span>
           </button>
 
           {/* 7. All Confirmed Orders */}
           <button
             onClick={() => handleViewChange('all-confirmed-orders')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'all-confirmed-orders'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('all-confirmed-orders')}
           >
             <FileText className="w-5 h-5" />
-            <span className="font-medium">All Confirmed Orders</span>
+            <span className="font-medium text-sm">All Confirmed Orders</span>
           </button>
 
           {/* 8. Mandi Bhav */}
           <button
             onClick={() => handleViewChange('mandi')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'mandi'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('mandi')}
           >
             <TrendingUp className="w-5 h-5" />
-            <span className="font-medium">Mandi Bhaav</span>
+            <span className="font-medium text-sm">Mandi Bhaav</span>
           </button>
 
           {/* 9. CEDA Agri Market Data */}
           <button
             onClick={() => handleViewChange('ceda-agmarknet')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'ceda-agmarknet'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('ceda-agmarknet')}
           >
             <BarChart3 className="w-5 h-5" />
-            <span className="font-medium">CEDA Agri Market Data</span>
+            <span className="font-medium text-sm">CEDA Agri Market Data</span>
           </button>
 
           {/* 10. Weather Forecast */}
           <button
             onClick={() => handleViewChange('weather')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'weather'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('weather')}
           >
             <Cloud className="w-5 h-5" />
-            <span className="font-medium">Weather Forecast</span>
+            <span className="font-medium text-sm">Weather Forecast</span>
           </button>
 
           {/* 10. Logistics Provider Management */}
           <button
             onClick={() => handleViewChange('logistics-providers')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'logistics-providers'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('logistics-providers')}
           >
             <Truck className="w-5 h-5" />
-            <span className="font-medium">Logistics Provider Management</span>
+            <span className="font-medium text-sm">Logistics Providers</span>
           </button>
 
           {/* 11. Commodity & Variety Management */}
           <button
             onClick={() => handleViewChange('commodity-variety-management')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'commodity-variety-management'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('commodity-variety-management')}
           >
             <Package className="w-5 h-5" />
-            <span className="font-medium">Commodity & Variety</span>
+            <span className="font-medium text-sm">Commodity & Variety</span>
           </button>
 
           {/* 12. Warehouse Management */}
           <button
             onClick={() => handleViewChange('warehouse-management')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'warehouse-management'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('warehouse-management')}
           >
             <Package className="w-5 h-5" />
-            <span className="font-medium">Warehouse Management</span>
+            <span className="font-medium text-sm">Warehouse Management</span>
           </button>
 
           {/* 13. Location Management */}
@@ -552,18 +517,30 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
             <span className="font-medium">Location Management</span>
           </button>
 
+          <button
+            onClick={() => handleViewChange('site-settings')}
+            className={navButtonClass('site-settings')}
+          >
+            <Settings className="w-5 h-5" />
+            <span className="font-medium text-sm">Website Settings</span>
+          </button>
+
+          <button
+            onClick={() => handleViewChange('contact-inquiries')}
+            className={navButtonClass('contact-inquiries')}
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span className="font-medium text-sm">Contact Inquiries</span>
+          </button>
+
           {/* ========== COMMENTED OUT - NOT IN USE ========== */}
           {/* 
           <button
             onClick={() => handleViewChange('orders')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'orders'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('orders')}
           >
             <ClipboardCheck className="w-5 h-5" />
-            <span className="font-medium">Orders & QC</span>
+            <span className="font-medium text-sm">Orders & QC</span>
             {stats.pendingOrders > 0 && (
               <span className="ml-auto bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                 {stats.pendingOrders}
@@ -573,38 +550,26 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
 
           <button
             onClick={() => handleViewChange('offers')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'offers'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('offers')}
           >
             <Package className="w-5 h-5" />
-            <span className="font-medium">Offer Oversight</span>
+            <span className="font-medium text-sm">Offer Oversight</span>
           </button>
 
           <button
             onClick={() => handleViewChange('quality')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'quality'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('quality')}
           >
             <Calculator className="w-5 h-5" />
-            <span className="font-medium">Quality & Deductions</span>
+            <span className="font-medium text-sm">Quality & Deductions</span>
           </button>
 
           <button
             onClick={() => handleViewChange('logistics')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              currentView === 'logistics'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50'
-            }`}
+            className={navButtonClass('logistics')}
           >
             <Truck className="w-5 h-5" />
-            <span className="font-medium">Logistics</span>
+            <span className="font-medium text-sm">Logistics</span>
           </button>
 
           <button
@@ -660,11 +625,28 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
 
         <div className="p-4 border-t border-slate-700 flex-shrink-0">
           <button
-            onClick={onSignOut}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-slate-700/50 transition-colors"
+            onClick={async () => {
+              console.log('📍 [AdminPanel] Sign out button clicked');
+              try {
+                await onSignOut();
+                console.log('📍 [AdminPanel] onSignOut completed, navigating to /login');
+                setTimeout(() => {
+                  navigate('/login');
+                }, 50);
+              } catch (error) {
+                console.error('📍 [AdminPanel] Sign out error:', error);
+                localStorage.removeItem('auth_token');
+                sessionStorage.clear();
+                navigate('/login');
+              }
+            }}
+            disabled={signingOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-slate-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <LogOut className="w-5 h-5" />
-            <span className="font-medium">Sign Out</span>
+            <span className="font-medium">
+              {signingOut ? 'Signing Out...' : 'Sign Out'}
+            </span>
           </button>
         </div>
       </aside>
@@ -701,6 +683,8 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
             {currentView === 'commodity-variety-management' && 'Commodity & Variety Management'}
             {currentView === 'warehouse-management' && 'Warehouse Management'}
             {currentView === 'location-management' && 'Location Management'}
+            {currentView === 'site-settings' && 'Website Settings'}
+            {currentView === 'contact-inquiries' && 'Contact Inquiries'}
             {/* Commented out header titles for unused views */}
             {/* {currentView === 'orders' && 'Order Management & Quality Control'} */}
             {/* {currentView === 'offers' && 'Offer Oversight & Inventory'} */}
@@ -740,10 +724,10 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
             <UserManagement users={users} onRefresh={loadData} onUserUpdated={handleUserUpdated} currentUserRole={profile.role} />
           )}
           {currentView === 'all-purchase-orders' && (
-            <AllPurchaseOrders />
+            <AllPurchaseOrders currentUserRole={profile.role} />
           )}
           {currentView === 'all-sale-orders' && (
-            <AllSaleOrders />
+            <AllSaleOrders currentUserRole={profile.role} />
           )}
           {currentView === 'confirm-sales-order' && (
             <ConfirmSalesOrderForm />
@@ -752,7 +736,7 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
             <ConfirmPurchaseOrderForm />
           )}
           {currentView === 'all-confirmed-orders' && (
-            <AllConfirmedOrders currentUserRole={profile.role} />
+            <AllConfirmedOrders currentUserRole={profile.role} dataVersion={dataVersion} />
           )}
           {currentView === 'mandi' && (
             <MandiBhaav />
@@ -770,10 +754,16 @@ export default function AdminPanel({ profile, onSignOut }: AdminPanelProps) {
             <CommodityVarietyManagement currentUserRole={profile.role} />
           )}
           {currentView === 'warehouse-management' && (
-            <WarehouseManagement currentUserRole={profile.role} />
+            <WarehouseManagement currentUserRole={profile.role} dataVersion={dataVersion} />
           )}
           {currentView === 'location-management' && (
-            <LocationManagement currentUserRole={profile.role} />
+            <LocationManagement currentUserRole={profile.role} dataVersion={dataVersion} />
+          )}
+          {currentView === 'site-settings' && (
+            <SiteSettingsPanel />
+          )}
+          {currentView === 'contact-inquiries' && (
+            <ContactInquiriesPanel />
           )}
           {/* ========== COMMENTED OUT - NOT IN USE ========== */}
           {/* 
