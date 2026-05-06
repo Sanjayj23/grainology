@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Truck, Plus, Edit2, Trash2, Search, MapPin, Phone, Mail } from 'lucide-react';
 import { api } from '../../lib/client';
+import { usePopupContext } from '../../contexts/PopupContext';
 import {
   buildLogisticsFilterOptions,
   deriveLocationCombinationsFromProviders,
@@ -22,6 +23,7 @@ interface LogisticsProvider {
 }
 
 export default function LogisticsProviderManagement() {
+  const { showConfirm } = usePopupContext();
   const [providers, setProviders] = useState<LogisticsProvider[]>([]);
   const [filteredProviders, setFilteredProviders] = useState<LogisticsProvider[]>([]);
   const [locationCombinations, setLocationCombinations] = useState<LogisticsLocationCombination[]>([]);
@@ -189,7 +191,14 @@ export default function LogisticsProviderManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Is provider ko delete karna hai?')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Provider',
+      message: 'Is provider ko delete karna hai?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
 
     const { error } = await api
       .from('logistics_providers')

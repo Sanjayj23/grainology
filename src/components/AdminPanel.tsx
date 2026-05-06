@@ -721,7 +721,13 @@ export default function AdminPanel({ profile, onSignOut, signingOut }: AdminPane
             <AnalyticsDashboard />
           )}
           {currentView === 'users' && (
-            <UserManagement users={users} onRefresh={loadData} onUserUpdated={handleUserUpdated} currentUserRole={profile.role} />
+            <UserManagement
+              users={users}
+              onRefresh={loadData}
+              onUserUpdated={handleUserUpdated}
+              currentUserRole={profile.role}
+              currentUserId={profile.id}
+            />
           )}
           {currentView === 'all-purchase-orders' && (
             <AllPurchaseOrders currentUserRole={profile.role} />

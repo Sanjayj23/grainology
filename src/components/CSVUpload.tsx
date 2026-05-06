@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Upload, FileText, Download, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { api } from '../lib/api';
+import { usePopupContext } from '../contexts/PopupContext';
 
 interface CSVUploadProps {
   type: 'offers' | 'orders' | 'purchase-orders' | 'sale-orders' | 'quality' | 'mandi' | 'logistics-shipments' | 'weather' | 'supply-transactions';
@@ -9,6 +10,7 @@ interface CSVUploadProps {
 }
 
 export default function CSVUpload({ type, onUploadSuccess, label }: CSVUploadProps) {
+  const { showAlert } = usePopupContext();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -117,7 +119,11 @@ export default function CSVUpload({ type, onUploadSuccess, label }: CSVUploadPro
       document.body.removeChild(a);
     } catch (error) {
       console.error('Download sample error:', error);
-      alert('Failed to download sample file');
+      await showAlert({
+        title: 'Download Failed',
+        message: 'Failed to download sample file',
+        tone: 'danger',
+      });
     }
   };
 
@@ -203,4 +209,3 @@ export default function CSVUpload({ type, onUploadSuccess, label }: CSVUploadPro
     </div>
   );
 }
-

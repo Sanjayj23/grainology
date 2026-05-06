@@ -23,6 +23,7 @@ import {
   type AnalyticsOrderType,
   type AnalyticsReportType
 } from '../../../lib/analyticsExport';
+import { usePopupContext } from '../../../contexts/PopupContext';
 
 interface Props {
   period: string;
@@ -44,6 +45,7 @@ const reportTypes: { key: AnalyticsReportType; label: string; icon: React.Elemen
 ];
 
 export default function TabularReports({ period, orderType, filters }: Props) {
+  const { showAlert } = usePopupContext();
   const [activeReport, setActiveReport] = useState<AnalyticsReportType>('order-summary');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,11 @@ export default function TabularReports({ period, orderType, filters }: Props) {
       });
     } catch (error) {
       console.error('Failed to export analytics report:', error);
-      alert(error instanceof Error ? error.message : 'Failed to export analytics report');
+      await showAlert({
+        title: 'Export Failed',
+        message: error instanceof Error ? error.message : 'Failed to export analytics report',
+        tone: 'danger',
+      });
     } finally {
       setExporting(false);
     }

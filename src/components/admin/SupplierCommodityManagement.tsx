@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Truck, Plus, Edit2, Trash2, Package, MapPin, FileText, Calendar, Weight, ClipboardCheck } from 'lucide-react';
 import { api } from '../../lib/client';
 import SupplierQualityReport from './SupplierQualityReport';
+import { usePopupContext } from '../../contexts/PopupContext';
 
 interface Supplier {
   id: string;
@@ -40,6 +41,7 @@ interface Supply {
 }
 
 export default function SupplierCommodityManagement() {
+  const { showConfirm } = usePopupContext();
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [varieties, setVarieties] = useState<Variety[]>([]);
@@ -218,7 +220,14 @@ export default function SupplierCommodityManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this supply record?')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Supply Record',
+      message: 'Are you sure you want to delete this supply record?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
 
     const { error } = await api
       .from('supplier_commodity_supplies')

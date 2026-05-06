@@ -25,6 +25,7 @@ import {
   type AnalyticsFilterMode,
   type AnalyticsOrderType
 } from '../../../lib/analyticsExport';
+import { usePopupContext } from '../../../contexts/PopupContext';
 
 type TabType = 'time-based' | 'commodity' | 'customer' | 'comparison' | 'reports';
 
@@ -43,6 +44,7 @@ const groupByOptions = [
 ];
 
 export default function AnalyticsDashboard() {
+  const { showAlert } = usePopupContext();
   const [activeTab, setActiveTab] = useState<TabType>('time-based');
   const [groupBy, setGroupBy] = useState('month');
   const [orderType, setOrderType] = useState<AnalyticsOrderType>('purchase');
@@ -92,7 +94,11 @@ export default function AnalyticsDashboard() {
       });
     } catch (error) {
       console.error('Failed to export analytics workbook:', error);
-      alert(error instanceof Error ? error.message : 'Failed to export analytics workbook');
+      await showAlert({
+        title: 'Export Failed',
+        message: error instanceof Error ? error.message : 'Failed to export analytics workbook',
+        tone: 'danger',
+      });
     } finally {
       setExporting(false);
     }

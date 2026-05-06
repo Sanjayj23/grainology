@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Package, Plus, Edit2, Trash2, X, Save, AlertCircle } from 'lucide-react';
 import { useToastContext } from '../../contexts/ToastContext';
+import { usePopupContext } from '../../contexts/PopupContext';
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 
 interface Commodity {
@@ -45,6 +46,7 @@ const getApprovalLabel = (status?: string) => {
 
 export default function CommodityVarietyManagement({ currentUserRole }: CommodityVarietyManagementProps) {
   const { showSuccess, showError } = useToastContext();
+  const { showConfirm, showPrompt } = usePopupContext();
   const canApprove = currentUserRole === 'super_admin';
   const [commodities, setCommodities] = useState<Commodity[]>([]);
   const [varieties, setVarieties] = useState<Variety[]>([]);
@@ -221,7 +223,14 @@ export default function CommodityVarietyManagement({ currentUserRole }: Commodit
   };
 
   const handleDeleteCommodity = async (id: string) => {
-    if (!confirm('Are you sure you want to deactivate this commodity? It will be hidden from selection but existing records will remain.')) {
+    const confirmed = await showConfirm({
+      title: 'Deactivate Commodity',
+      message: 'Are you sure you want to deactivate this commodity? It will be hidden from selection but existing records will remain.',
+      confirmText: 'Deactivate',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -257,7 +266,16 @@ export default function CommodityVarietyManagement({ currentUserRole }: Commodit
       }
 
       const declineReasonInput = status === 'declined'
-        ? window.prompt('Enter decline reason:', '')
+        ? await showPrompt({
+            title: 'Decline Commodity',
+            message: 'Enter decline reason for this commodity.',
+            inputLabel: 'Decline reason',
+            placeholder: 'Reason for declining',
+            confirmText: 'Decline',
+            cancelText: 'Cancel',
+            required: true,
+            tone: 'warning',
+          })
         : null;
       if (status === 'declined' && declineReasonInput === null) return;
       const reason = (declineReasonInput || '').trim();
@@ -289,7 +307,14 @@ export default function CommodityVarietyManagement({ currentUserRole }: Commodit
   };
 
   const handleDeleteVariety = async (id: string) => {
-    if (!confirm('Are you sure you want to deactivate this variety? It will be hidden from selection but existing records will remain.')) {
+    const confirmed = await showConfirm({
+      title: 'Deactivate Variety',
+      message: 'Are you sure you want to deactivate this variety? It will be hidden from selection but existing records will remain.',
+      confirmText: 'Deactivate',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -325,7 +350,16 @@ export default function CommodityVarietyManagement({ currentUserRole }: Commodit
       }
 
       const declineReasonInput = status === 'declined'
-        ? window.prompt('Enter decline reason:', '')
+        ? await showPrompt({
+            title: 'Decline Variety',
+            message: 'Enter decline reason for this variety.',
+            inputLabel: 'Decline reason',
+            placeholder: 'Reason for declining',
+            confirmText: 'Decline',
+            cancelText: 'Cancel',
+            required: true,
+            tone: 'warning',
+          })
         : null;
       if (status === 'declined' && declineReasonInput === null) return;
       const reason = (declineReasonInput || '').trim();

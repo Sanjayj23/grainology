@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Store, Plus, Edit2, Trash2, ClipboardCheck } from 'lucide-react';
 import { api } from '../../lib/client';
 import CustomerQualityReport from './CustomerQualityReport';
+import { usePopupContext } from '../../contexts/PopupContext';
 
 interface Customer {
   id: string;
@@ -54,6 +55,7 @@ interface Sale {
 }
 
 export default function CustomerCommoditySales() {
+  const { showConfirm } = usePopupContext();
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [varieties, setVarieties] = useState<Variety[]>([]);
@@ -247,7 +249,14 @@ export default function CustomerCommoditySales() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this sale record?')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Sale Record',
+      message: 'Are you sure you want to delete this sale record?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
 
     const { error } = await api
       .from('customer_commodity_sales')

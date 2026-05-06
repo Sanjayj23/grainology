@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { type Profile } from '../../lib/client';
-import { Search, Filter, Shield, XCircle, User, Building, Eye, EyeOff, FileText, Download, ThumbsUp, ThumbsDown, UserPlus, Link2, Copy } from 'lucide-react';
+import { Search, Filter, Shield, XCircle, User, Building, Eye, EyeOff, FileText, Download, ThumbsUp, ThumbsDown, UserPlus, Link2, Copy, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { usePopupContext } from '../../contexts/PopupContext';
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -76,14 +77,34 @@ async function adminGenerateReentryLink(userId: string) {
   return data;
 }
 
+async function adminDeleteUser(userId: string) {
+  const token = localStorage.getItem('auth_token');
+  const id = String(userId).trim();
+  if (!id || id === 'undefined') throw new Error('Invalid user id');
+  const res = await fetch(`${apiUrl}/admin/users/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || data.message || 'Delete failed');
+  }
+  return data;
+}
+
 interface UserManagementProps {
   users: Profile[];
   onRefresh: () => void;
   onUserUpdated?: (userId: string, updates: Partial<Profile>) => void;
   currentUserRole?: Profile['role'];
+  currentUserId?: string;
 }
 
-export default function UserManagement({ users, onRefresh, onUserUpdated, currentUserRole }: UserManagementProps) {
+export default function UserManagement({ users, onRefresh, onUserUpdated, currentUserRole, currentUserId }: UserManagementProps) {
+  const { showAlert, showConfirm } = usePopupContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [showPendingSection, setShowPendingSection] = useState(true);
@@ -105,8 +126,10 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [reentryLinks, setReentryLinks] = useState<Record<string, string>>({});
   const [generatingReentryLinkFor, setGeneratingReentryLinkFor] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const canApproveUsers = currentUserRole === 'super_admin';
   const canGenerateReentryLink = currentUserRole === 'admin' || currentUserRole === 'super_admin';
+  const canDeleteUsers = currentUserRole === 'admin' || currentUserRole === 'super_admin';
 
   const filteredUsers = users.filter(user => {
     const matchesSearch =
@@ -279,6 +302,7 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
     setLoading(false);
   };
 
+  const activeUsers = users.filter((u: any) => (u?.approval_status || 'pending') !== 'rejected');
   const pendingUsers = users.filter(u => (u as any).approval_status === 'pending');
   const rejectedUsers = users.filter(u => (u as any).approval_status === 'rejected');
 
@@ -292,9 +316,15 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
   const copyToClipboard = async (text: string, successMessage = 'Link copied') => {
     try {
       await navigator.clipboard.writeText(text);
-      window.alert(successMessage);
+      await showAlert({ title: 'Copied', message: successMessage, tone: 'success' });
     } catch {
-      window.prompt('Copy this link:', text);
+      await showAlert({
+        title: 'Copy Link',
+        message: 'Clipboard access is unavailable. Copy this link manually.',
+        details: text,
+        confirmText: 'Close',
+        tone: 'info',
+      });
     }
   };
 
@@ -318,10 +348,51 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
     }
   };
 
+  const handleDeleteUser = async (user: Profile | null) => {
+    const id = getUserId(user);
+    if (!id) return;
+    if (!canDeleteUsers) {
+      setError('Only Admin or Super Admin can delete users');
+      return;
+    }
+    if (currentUserId && id === String(currentUserId)) {
+      setError('You cannot delete your own account while signed in');
+      return;
+    }
+
+    const userName = user?.name || 'this user';
+    const confirmed = await showConfirm({
+      title: 'Delete User',
+      message: `Delete ${userName}? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    setDeletingUserId(id);
+    setError('');
+    try {
+      await adminDeleteUser(id);
+      if (selectedUser && getUserId(selectedUser) === id) {
+        setSelectedUser(null);
+      }
+      await onRefresh();
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete user');
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
   const handleExportApprovedUsers = () => {
     const approved = users.filter((u: any) => (u?.approval_status || 'pending') === 'approved');
     if (!approved.length) {
-      window.alert('No approved users to export.');
+      void showAlert({
+        title: 'No Approved Users',
+        message: 'There are no approved users available to export right now.',
+        tone: 'warning',
+      });
       return;
     }
     const rows = approved.map((u) => ({
@@ -455,7 +526,7 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-700 font-medium mb-1">Total Users</p>
-            <p className="text-3xl font-bold text-blue-800">{users.length}</p>
+            <p className="text-3xl font-bold text-blue-800">{activeUsers.length}</p>
           </div>
           {roleStats.map((stat) => (
             <div key={stat.key} className={`rounded-lg p-4 border ${stat.cardClass}`}>
@@ -544,6 +615,18 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
                             Pending for Super Admin approval
                           </p>
                         )}
+                        {canDeleteUsers && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(user)}
+                            disabled={loading || deletingUserId === getUserId(user)}
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                            title="Delete user"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            {deletingUserId === getUserId(user) ? 'Deleting...' : 'Delete'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -607,6 +690,18 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
                             <p className="flex-1 text-xs text-red-700 bg-red-100 px-2 py-2 rounded-lg text-center">
                               Admin access needed
                             </p>
+                          )}
+                          {canDeleteUsers && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={deletingUserId === getUserId(user)}
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+                              title="Delete user"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              {deletingUserId === getUserId(user) ? 'Deleting...' : 'Delete'}
+                            </button>
                           )}
                           <button
                             type="button"
@@ -724,13 +819,26 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <button
-                      onClick={() => setSelectedUser(user)}
-                      className="p-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg transition-colors"
-                      title="View Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedUser(user)}
+                        className="p-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {canDeleteUsers && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={deletingUserId === getUserId(user)}
+                          className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition-colors disabled:opacity-50"
+                          title="Delete user"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1080,6 +1188,28 @@ export default function UserManagement({ users, onRefresh, onUserUpdated, curren
               )}
 
               <div className="space-y-4">
+                {canDeleteUsers && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Delete User
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(selectedUser)}
+                      disabled={deletingUserId === getUserId(selectedUser)}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {deletingUserId === getUserId(selectedUser) ? 'Deleting user...' : 'Delete User'}
+                    </button>
+                    {currentUserId && getUserId(selectedUser) === String(currentUserId) && (
+                      <p className="text-xs text-amber-700 mt-2">
+                        Your own signed-in account cannot be deleted from this panel.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Account Approval

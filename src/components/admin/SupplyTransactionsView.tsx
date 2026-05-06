@@ -3,6 +3,7 @@ import { FileText, TrendingUp, Package, Building, Filter, Search, Download, Cale
 import { api } from '../../lib/api';
 import CSVUpload from '../CSVUpload';
 import SupplyTransactionForm from './SupplyTransactionForm';
+import { usePopupContext } from '../../contexts/PopupContext';
 
 interface SupplyTransaction {
   id: string;
@@ -47,6 +48,7 @@ interface TransactionSummary {
 }
 
 export default function SupplyTransactionsView() {
+  const { showAlert, showConfirm } = usePopupContext();
   const [transactions, setTransactions] = useState<SupplyTransaction[]>([]);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -186,7 +188,14 @@ export default function SupplyTransactionsView() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this transaction?')) {
+    const confirmed = await showConfirm({
+      title: 'Delete Transaction',
+      message: 'Are you sure you want to delete this transaction?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -207,11 +216,19 @@ export default function SupplyTransactionsView() {
         loadStats();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(errorData.error || 'Failed to delete transaction');
+        await showAlert({
+          title: 'Delete Failed',
+          message: errorData.error || 'Failed to delete transaction',
+          tone: 'danger',
+        });
       }
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      alert('An error occurred while deleting the transaction');
+      await showAlert({
+        title: 'Delete Failed',
+        message: 'An error occurred while deleting the transaction',
+        tone: 'danger',
+      });
     }
   };
 
@@ -537,4 +554,3 @@ export default function SupplyTransactionsView() {
     </div>
   );
 }
-

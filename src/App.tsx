@@ -14,6 +14,7 @@ import AdminPanel from './components/AdminPanel';
 import KYCCallback from './pages/KYCCallback';
 import ScrollToTop from './components/ScrollToTop';
 import { ToastProvider } from './contexts/ToastContext';
+import { PopupProvider } from './contexts/PopupContext';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
@@ -83,67 +84,69 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <ToastProvider>
-      <Router>
-        <ScrollToTop />
-        <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={
-          <>
-            <Navigation />
-            <LandingPage />
-            <Footer />
-          </>
-        } />
-        <Route path="/about" element={
-          <>
-            <Navigation />
-            <About />
-          </>
-        } />
-        <Route path="/services" element={
-          <>
-            <Navigation />
-            <Services />
-          </>
-        } />
-        <Route path="/features" element={
-          <>
-            <Navigation />
-            <Features />
-          </>
-        } />
-        <Route path="/contact" element={
-          <>
-            <Navigation />
-            <Contact />
-          </>
-        } />
-        <Route path="/login" element={
-          <AuthRoute>
-            <Login />
-          </AuthRoute>
-        } />
-        <Route path="/register" element={
-          <AuthRoute>
-            <Register />
-          </AuthRoute>
-        } />
-        <Route path="/kyc-callback" element={<KYCCallback />} />
+      <PopupProvider>
+        <Router>
+          <ScrollToTop />
+          <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={
+            <>
+              <Navigation />
+              <LandingPage />
+              <Footer />
+            </>
+          } />
+          <Route path="/about" element={
+            <>
+              <Navigation />
+              <About />
+            </>
+          } />
+          <Route path="/services" element={
+            <>
+              <Navigation />
+              <Services />
+            </>
+          } />
+          <Route path="/features" element={
+            <>
+              <Navigation />
+              <Features />
+            </>
+          } />
+          <Route path="/contact" element={
+            <>
+              <Navigation />
+              <Contact />
+            </>
+          } />
+          <Route path="/login" element={
+            <AuthRoute>
+              <Login />
+            </AuthRoute>
+          } />
+          <Route path="/register" element={
+            <AuthRoute>
+              <Register />
+            </AuthRoute>
+          } />
+          <Route path="/kyc-callback" element={<KYCCallback />} />
 
-        {/* Protected Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Redirect unknown routes to home */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+          {/* Redirect unknown routes to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </PopupProvider>
     </ToastProvider>
   );
 }

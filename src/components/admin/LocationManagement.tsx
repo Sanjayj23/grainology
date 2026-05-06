@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MapPin, Plus, Edit2, Trash2, X, Save } from 'lucide-react';
 import { useToastContext } from '../../contexts/ToastContext';
+import { usePopupContext } from '../../contexts/PopupContext';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat',
@@ -40,6 +41,7 @@ interface LocationManagementProps {
 
 export default function LocationManagement({ currentUserRole, dataVersion }: LocationManagementProps) {
   const { showSuccess, showError } = useToastContext();
+  const { showConfirm } = usePopupContext();
   const canApprove = currentUserRole === 'super_admin';
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,7 +193,14 @@ export default function LocationManagement({ currentUserRole, dataVersion }: Loc
   };
 
   const handleDelete = async (location: LocationItem) => {
-    if (!window.confirm(`Are you sure you want to deactivate "${location.name}"? It will no longer appear in Confirm Sales/Purchase order dropdowns.`)) {
+    const confirmed = await showConfirm({
+      title: 'Deactivate Location',
+      message: `Are you sure you want to deactivate "${location.name}"? It will no longer appear in Confirm Sales/Purchase order dropdowns.`,
+      confirmText: 'Deactivate',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) {
       return;
     }
     try {

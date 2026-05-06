@@ -5,6 +5,7 @@ import Navigation from './Navigation';
 import Footer from './Footer';
 // @ts-ignore - JS module without types
 import { api } from '../lib/api';
+import { usePopupContext } from '../contexts/PopupContext';
 
 interface DocumentOption {
   value: string;
@@ -60,6 +61,7 @@ function ResendOtpButton({
 }
 
 export default function SimpleRegistration() {
+  const { showAlert } = usePopupContext();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [userType, setUserType] = useState('');
@@ -301,7 +303,11 @@ export default function SimpleRegistration() {
         setEmailOtpSent(true);
         setOtpSentAt(Date.now());
         setError('');
-        alert('OTP sent to your email!');
+        await showAlert({
+          title: 'OTP Sent',
+          message: 'OTP sent to your email!',
+          tone: 'success',
+        });
       }
     } catch (err: any) {
       setError(err.message || 'Failed to send Email OTP');

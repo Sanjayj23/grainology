@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Offer, Profile } from '../../lib/client';
 import { Search, MapPin, Package, X, ShoppingCart } from 'lucide-react';
+import { usePopupContext } from '../../contexts/PopupContext';
 
 interface MarketplaceProps {
   offers: Offer[];
@@ -9,6 +10,7 @@ interface MarketplaceProps {
 }
 
 export default function Marketplace({ offers, profile, onPlaceOrder }: MarketplaceProps) {
+  const { showAlert } = usePopupContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCommodity, setSelectedCommodity] = useState<string>('All');
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
@@ -29,7 +31,11 @@ export default function Marketplace({ offers, profile, onPlaceOrder }: Marketpla
     if (!selectedOffer || profile.role !== 'trader') return;
 
     if (orderQuantity < selectedOffer.min_trade_quantity_mt) {
-      alert(`Minimum trade quantity is ${selectedOffer.min_trade_quantity_mt} MT`);
+      await showAlert({
+        title: 'Minimum Trade Quantity',
+        message: `Minimum trade quantity is ${selectedOffer.min_trade_quantity_mt} MT`,
+        tone: 'warning',
+      });
       return;
     }
 

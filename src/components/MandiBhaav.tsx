@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { TrendingUp, Download, Printer, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { MandiCache } from '../lib/sessionStorage';
+import { usePopupContext } from '../contexts/PopupContext';
 
 interface AgMarkNetData {
   commodity_group: string;
@@ -20,6 +21,7 @@ interface FilterOptions {
 }
 
 export default function MandiBhaav() {
+  const { showAlert } = usePopupContext();
   const [data, setData] = useState<AgMarkNetData[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     states: [],
@@ -524,7 +526,11 @@ export default function MandiBhaav() {
                   URL.revokeObjectURL(url);
                 } catch (error) {
                   console.error('Error downloading CSV:', error);
-                  alert('Failed to download CSV. Please try again.');
+                  void showAlert({
+                    title: 'Download Failed',
+                    message: 'Failed to download CSV. Please try again.',
+                    tone: 'danger',
+                  });
                 }
               }}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"

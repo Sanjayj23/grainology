@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Warehouse, Plus, Edit2, Trash2, X, Save } from 'lucide-react';
 import { useToastContext } from '../../contexts/ToastContext';
+import { usePopupContext } from '../../contexts/PopupContext';
 
 interface WarehouseItem {
   id: string;
@@ -38,6 +39,7 @@ interface WarehouseManagementProps {
 
 export default function WarehouseManagement({ currentUserRole, dataVersion }: WarehouseManagementProps) {
   const { showSuccess, showError } = useToastContext();
+  const { showConfirm } = usePopupContext();
   const canApprove = currentUserRole === 'super_admin';
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
@@ -190,7 +192,14 @@ export default function WarehouseManagement({ currentUserRole, dataVersion }: Wa
   };
 
   const handleDelete = async (warehouse: WarehouseItem) => {
-    if (!window.confirm(`Are you sure you want to deactivate "${warehouse.name}"?`)) return;
+    const confirmed = await showConfirm({
+      title: 'Deactivate Warehouse',
+      message: `Are you sure you want to deactivate "${warehouse.name}"?`,
+      confirmText: 'Deactivate',
+      cancelText: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(`${apiUrl}/warehouse-master/${warehouse.id}`, {
         method: 'DELETE',
