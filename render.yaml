@@ -1,0 +1,43 @@
+# Render Blueprint - Backend + Frontend
+# Deploy both from Render Dashboard → New → Blueprint → Connect repo and select this file
+
+services:
+  # Backend API (Node)
+  - type: web
+    name: grainology-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set in Render Dashboard: MONGODB_URI, JWT_SECRET, BREVO_SMTP_USER, BREVO_SMTP_KEY, FRONTEND_URL, etc.
+
+  # Frontend (static site from Vite build)
+  - type: web
+    name: grainology-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://grainology-rmg1.onrender.com/api
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: sameorigin
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # After first deploy, set FRONTEND_URL on the backend service to this frontend URL (e.g. https://grainology-frontend.onrender.com)

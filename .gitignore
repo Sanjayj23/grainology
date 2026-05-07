@@ -4,7 +4,8 @@ server.js
 routes/
 models/
 middleware/
-lib/
+# Exclude backend lib but keep frontend src/lib
+/lib/
 scripts/
 keys/
 services/
@@ -84,3 +85,22 @@ API_*.md
 *_TEST_CREDENTIALS.md
 *_WHAT_WILL_CHANGE.md
 
+# Backend runtime source needed for Render deployment
+!server.js
+!render.yaml
+!config/
+!config/**
+!middleware/
+!middleware/**
+!models/
+!models/**
+!routes/
+!routes/**
+!services/
+!services/**
+!utils/
+!utils/**
+!data/
+!data/**
+!lib/
+!lib/cashfree.js
