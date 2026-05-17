@@ -118,6 +118,9 @@ const confirmedSalesOrderSchema = new mongoose.Schema({
   }
 });
 
+confirmedSalesOrderSchema.index({ trash: 1, createdAt: -1 });
+confirmedSalesOrderSchema.index({ customer_id: 1, trash: 1, createdAt: -1 });
+confirmedSalesOrderSchema.index({ customer_id: 1, approval_status: 1, trash: 1, createdAt: -1 });
 confirmedSalesOrderSchema.index({ updatedAt: -1 });
 
 const ConfirmedSalesOrder = mongoose.model('ConfirmedSalesOrder', confirmedSalesOrderSchema);

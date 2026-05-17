@@ -11,6 +11,7 @@ import { parseFile } from '../utils/csvParser.js';
 import { getMappedValue, parseDate, parseNumeric, toNA, getAvailableColumns } from '../utils/columnMapper.js';
 
 const router = express.Router();
+const LIST_ORDER_SELECT = '-quality_report';
 
 // Test route to verify the router is working
 router.get('/test', (req, res) => {
@@ -30,6 +31,7 @@ router.get('/', requireAdmin, async (req, res) => {
       console.log('ConfirmedSalesOrders: GET / - logging failed', e && e.message);
     }
     const orders = await ConfirmedSalesOrder.find({ trash: { $ne: true } })
+      .select(LIST_ORDER_SELECT)
       .populate('customer_id', 'name email mobile_number')
       .populate('created_by', 'name email')
       .sort({ createdAt: -1 });
@@ -67,6 +69,7 @@ router.get('/customer/:customerId', async (req, res) => {
     }
 
     const orders = await ConfirmedSalesOrder.find(query)
+      .select(LIST_ORDER_SELECT)
       .populate('customer_id', 'name email mobile_number')
       .populate('created_by', 'name email')
       .sort({ createdAt: -1 });

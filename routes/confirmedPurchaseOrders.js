@@ -11,6 +11,7 @@ import { parseFile } from '../utils/csvParser.js';
 import { getMappedValue, parseDate, parseNumeric, toNA, getAvailableColumns } from '../utils/columnMapper.js';
 
 const router = express.Router();
+const LIST_ORDER_SELECT = '-quality_report';
 
 // All routes require authentication
 router.use(authenticate);
@@ -19,6 +20,7 @@ router.use(authenticate);
 router.get('/', requireAdmin, async (req, res) => {
   try {
     const orders = await ConfirmedPurchaseOrder.find({ trash: { $ne: true } })
+      .select(LIST_ORDER_SELECT)
       .populate('customer_id', 'name email mobile_number')
       .populate('created_by', 'name email')
       .sort({ createdAt: -1 });
@@ -50,6 +52,7 @@ router.get('/customer/:customerId', async (req, res) => {
     }
 
     const orders = await ConfirmedPurchaseOrder.find(query)
+      .select(LIST_ORDER_SELECT)
       .populate('customer_id', 'name email mobile_number')
       .populate('created_by', 'name email')
       .sort({ createdAt: -1 });

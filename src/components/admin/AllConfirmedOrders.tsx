@@ -129,7 +129,9 @@ const DEFAULT_COLUMN_FILTERS: ColumnFilterState = {
   approval: '',
 };
 
-const ORDERS_FETCH_TIMEOUT_MS = 30000;
+const ORDERS_FETCH_TIMEOUT_MS = 90000;
+const RETRYABLE_STATUS_CODES = new Set([502, 503, 504]);
+const RETRY_DELAY_MS = 1500;
 
 interface AllConfirmedOrdersProps {
   currentUserRole?: string;
@@ -167,7 +169,7 @@ export default function AllConfirmedOrders({ currentUserRole, dataVersion }: All
   const [bulkDeclineReason, setBulkDeclineReason] = useState('');
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
 
-  const fetchJsonWithTimeout = async (url: string, token: string) => {
+  const fetchJsonWithTimeout = async (url: string, token: string, retryCount = 0): Promise<any[]> => {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), ORDERS_FETCH_TIMEOUT_MS);
 
@@ -182,6 +184,11 @@ export default function AllConfirmedOrders({ currentUserRole, dataVersion }: All
 
       const data = await response.json().catch(() => null);
 
+      if (RETRYABLE_STATUS_CODES.has(response.status) && retryCount < 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, RETRY_DELAY_MS));
+        return fetchJsonWithTimeout(url, token, retryCount + 1);
+      }
+
       if (!response.ok) {
         throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
       }
@@ -189,7 +196,15 @@ export default function AllConfirmedOrders({ currentUserRole, dataVersion }: All
       return Array.isArray(data) ? data : [];
     } catch (err: any) {
       if (err?.name === 'AbortError') {
+        if (retryCount < 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, RETRY_DELAY_MS));
+          return fetchJsonWithTimeout(url, token, retryCount + 1);
+        }
         throw new Error('Request timed out while loading confirmed orders');
+      }
+      if ((err?.message?.includes?.('Failed to fetch') || err?.message?.includes?.('NetworkError')) && retryCount < 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, RETRY_DELAY_MS));
+        return fetchJsonWithTimeout(url, token, retryCount + 1);
       }
       throw err;
     } finally {
