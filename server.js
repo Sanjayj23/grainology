@@ -39,13 +39,19 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const DB_RETRY_INTERVAL_MS = Number(process.env.DB_RETRY_INTERVAL_MS || 10000);
 let dbRetryTimer = null;
 
 // -----------------------------
 // CORS CONFIG
 // -----------------------------
+
+const normalizeOrigin = (origin) => String(origin || '').trim().replace(/\/$/, '');
+
+const parseOrigins = (value) => String(value || '')
+  .split(',')
+  .map(normalizeOrigin)
+  .filter(Boolean);
 
 const allowedOrigins = [
   'http://localhost:3000',
@@ -54,35 +60,79 @@ const allowedOrigins = [
   'https://grainologyagri.com',
   'https://www.grainologyagri.com',
   'https://grainology-rmg1.onrender.com', // backend itself (e.g. server-side fetches)
-  process.env.FRONTEND_URL
-].filter(Boolean);
+  process.env.FRONTEND_URL,
+  ...parseOrigins(process.env.CORS_ORIGINS || process.env.ALLOWED_ORIGINS)
+]
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
+const allowedOriginSet = new Set(allowedOrigins);
 
 console.log("CORS allowed origins:", allowedOrigins);
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      // allow requests with no origin (mobile apps / curl / postman)
-      if (!origin) return callback(null, true);
+const getAllowedOrigin = (origin) => {
+  if (!origin) return null;
+  const normalized = normalizeOrigin(origin);
+  return allowedOriginSet.has(normalized) ? normalized : null;
+};
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+const corsMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+const corsAllowedHeaders = [
+  'Content-Type',
+  'Authorization',
+  'Accept',
+  'Origin',
+  'X-Requested-With',
+  'Cache-Control',
+  'Pragma'
+];
 
-      console.log('❌ Blocked CORS origin:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  })
-);
+const applyCorsHeaders = (req, res) => {
+  const allowedOrigin = getAllowedOrigin(req.headers.origin);
+
+  if (allowedOrigin) {
+    res.header('Access-Control-Allow-Origin', allowedOrigin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+
+  res.header('Access-Control-Allow-Methods', corsMethods.join(','));
+  res.header('Access-Control-Allow-Headers', corsAllowedHeaders.join(','));
+  res.header('Access-Control-Max-Age', '86400');
+};
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow requests with no origin (mobile apps / curl / postman).
+    if (!origin) return callback(null, true);
+
+    if (getAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    console.log('Blocked CORS origin:', origin);
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: corsMethods,
+  allowedHeaders: corsAllowedHeaders,
+  optionsSuccessStatus: 204
+};
+
+app.use((req, res, next) => {
+  applyCorsHeaders(req, res);
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
+app.use(cors(corsOptions));
 
 // trust render proxy for cookies
 app.set('trust proxy', 1);
-
-// handle OPTIONS preflight
-app.options('*', cors());
 
 // -----------------------------
 // BODY PARSER
@@ -100,7 +150,6 @@ const connectDB = async () => {
       console.error('💡 Please add MONGODB_URI to your .env file');
       console.error('   Example: MONGODB_URI=mongodb://localhost:27017/grainology');
       console.error('   Or MongoDB Atlas: MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/grainology');
-      if (IS_PRODUCTION) process.exit(1);
       return false;
     }
 
@@ -140,9 +189,6 @@ const connectDB = async () => {
     console.error('   3. If using local MongoDB: Ensure MongoDB service is running');
     console.error('   4. Verify your connection string format');
     console.error('   5. Check your network connection');
-    if (IS_PRODUCTION) {
-      process.exit(1);
-    }
     return false;
   }
 };
@@ -151,7 +197,7 @@ const scheduleDbReconnect = () => {
   if (dbRetryTimer) return;
   dbRetryTimer = setTimeout(async () => {
     dbRetryTimer = null;
-    console.log(`🔁 Retrying MongoDB connection in dev mode...`);
+    console.log(`🔁 Retrying MongoDB connection...`);
     const connected = await connectDB();
     if (!connected) {
       scheduleDbReconnect();
@@ -161,8 +207,8 @@ const scheduleDbReconnect = () => {
 
 (async () => {
   const connected = await connectDB();
-  if (!connected && !IS_PRODUCTION) {
-    console.warn('⚠️  Starting API without DB connection (dev mode).');
+  if (!connected) {
+    console.warn('⚠️  Starting API without DB connection. DB-backed routes will return 503 until MongoDB reconnects.');
     scheduleDbReconnect();
   }
 })();
@@ -214,6 +260,7 @@ app.use('/api/contact-inquiries', contactInquiryRoutes);
 // -----------------------------
 app.use((err, req, res, next) => {
   console.error('SERVER ERROR:', err.message);
+  applyCorsHeaders(req, res);
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
 

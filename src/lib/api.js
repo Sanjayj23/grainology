@@ -110,6 +110,12 @@ class ApiClient {
       return await response.json();
     } catch (error) {
       clearTimeout(timeoutId);
+
+      // Session checks run in the background. Treat network/preflight failures
+      // as a signed-out session without flooding the console.
+      if (endpoint === '/auth/session') {
+        return { user: null, session: null };
+      }
       
       // Handle timeout/abort errors (e.g. Render cold start)
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
@@ -129,11 +135,6 @@ class ApiClient {
           message: 'Unable to connect to the server. Please check your internet connection and try again.',
           details: error.message
         };
-      }
-      
-      // For session endpoint, return null instead of throwing
-      if (endpoint === '/auth/session') {
-        return { user: null, session: null };
       }
       throw error;
     }
@@ -340,7 +341,7 @@ class ApiClient {
           currentUser = data.user;
           callback('SIGNED_IN', data.session);
         }
-      }, 1000);
+      }, 30000);
 
       // Initial check
       this.auth.getSession().then(({ data }) => {

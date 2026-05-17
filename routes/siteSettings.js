@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import SiteSettings from '../models/SiteSettings.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 
@@ -73,6 +74,10 @@ function normalizeContactDetails(contactDetails = []) {
 }
 
 async function getOrCreateSettings() {
+  if (mongoose.connection.readyState !== 1) {
+    return DEFAULT_SETTINGS;
+  }
+
   const existing = await SiteSettings.findOne({ key: 'global' });
   if (existing) return existing;
   return SiteSettings.create(DEFAULT_SETTINGS);
@@ -84,6 +89,9 @@ router.get('/', async (req, res) => {
     res.json(settings);
   } catch (error) {
     console.error('Get site settings error:', error);
+    if (error.name === 'MongooseError' || error.message?.includes('buffering timed out') || error.message?.includes('connection')) {
+      return res.json(DEFAULT_SETTINGS);
+    }
     res.status(500).json({ error: error.message || 'Failed to fetch site settings' });
   }
 });
