@@ -2,11 +2,13 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://grainology-rmg1.onrender.com/api';
 const AUTH_SYNC_STORAGE_KEY = 'grainology_auth_sync';
 const AUTH_SYNC_EVENT = 'grainology-auth-changed';
+const SESSION_RETRY_COOLDOWN_MS = 60000;
 
 class ApiClient {
   constructor() {
     this.token = localStorage.getItem('auth_token') || null;
     this.sessionRequestVersion = 0;
+    this.sessionRetryAfter = 0;
   }
 
   broadcastAuthState(token) {
@@ -46,6 +48,12 @@ class ApiClient {
   async request(endpoint, options = {}) {
     const { authToken, ...fetchOptions } = options;
     const url = `${API_BASE_URL}${endpoint}`;
+    const isSessionCheck = endpoint === '/auth/session';
+
+    if (isSessionCheck && this.sessionRetryAfter > Date.now()) {
+      return { user: null, session: null };
+    }
+
     const headers = {
       'Content-Type': 'application/json',
       ...fetchOptions.headers,
@@ -74,6 +82,9 @@ class ApiClient {
       });
       
       clearTimeout(timeoutId);
+      if (isSessionCheck) {
+        this.sessionRetryAfter = 0;
+      }
 
       const activeToken = localStorage.getItem('auth_token');
 
@@ -97,13 +108,14 @@ class ApiClient {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        // Log error for debugging
-        console.error('API request failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: error,
-          url: url,
-        });
+        if (!isSessionCheck) {
+          console.error('API request failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: error,
+            url: url,
+          });
+        }
         throw error;
       }
 
@@ -112,8 +124,10 @@ class ApiClient {
       clearTimeout(timeoutId);
 
       // Session checks run in the background. Treat network/preflight failures
-      // as a signed-out session without flooding the console.
-      if (endpoint === '/auth/session') {
+      // as a signed-out session and briefly pause polling to avoid request storms
+      // during Render cold starts or temporary platform outages.
+      if (isSessionCheck) {
+        this.sessionRetryAfter = Date.now() + SESSION_RETRY_COOLDOWN_MS;
         return { user: null, session: null };
       }
       

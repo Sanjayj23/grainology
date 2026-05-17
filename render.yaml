@@ -13,7 +13,11 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Set in Render Dashboard: MONGODB_URI, JWT_SECRET, BREVO_SMTP_USER, BREVO_SMTP_KEY, FRONTEND_URL, etc.
+      - key: FRONTEND_URL
+        value: https://grainologyagri.com
+      - key: CORS_ORIGINS
+        value: https://grainologyagri.com,https://www.grainologyagri.com
+      # Set secrets in Render Dashboard: MONGODB_URI, JWT_SECRET, BREVO_SMTP_USER, BREVO_SMTP_KEY, etc.
 
   # Frontend (static site from Vite build)
   - type: web
