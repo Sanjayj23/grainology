@@ -13,6 +13,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 
 import requests
+import cloudscraper
 
 from schema import PriceRecord
 from normalize import normalize_commodity, normalize_market
@@ -115,7 +116,7 @@ def scrape_enam(
         }
     ]
 
-    session = requests.Session()
+    session = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True})
     session.headers.update(HEADERS)
 
     for attempt in endpoints_to_try:

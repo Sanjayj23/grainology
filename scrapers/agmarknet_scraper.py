@@ -14,6 +14,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 
 import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 
 from schema import PriceRecord
@@ -119,7 +120,7 @@ def scrape_agmarknet(
     Scrape Agmarknet for a given date.
     Returns list of normalized PriceRecord objects.
     """
-    session = requests.Session()
+    session = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True})
     fetched_at = datetime.now(tz=timezone.utc)
     all_records: list[PriceRecord] = []
 

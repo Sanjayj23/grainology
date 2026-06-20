@@ -14,6 +14,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 
 import requests
+import cloudscraper
 from dateutil import parser as dateutil_parser
 
 from schema import PriceRecord
@@ -69,7 +70,7 @@ def fetch_indiadataportal(
         "https://indiadataportal.com/p/agriculture-marketing/api",
     ]
 
-    session = requests.Session()
+    session = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True})
     session.headers.update(headers)
 
     for endpoint in endpoints:
