@@ -1,0 +1,28 @@
+node_modules/
+.next/
+out/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+scrapers/__pycache__/
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Local data proxies
+public/data/

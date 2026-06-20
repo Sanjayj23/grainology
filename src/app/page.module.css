@@ -1,0 +1,221 @@
+.root {
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Background ambient blobs */
+.blob1 {
+  position: fixed;
+  top: -20%;
+  left: -10%;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.07) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatBlob 18s ease-in-out infinite;
+}
+
+.blob2 {
+  position: fixed;
+  top: 25%;
+  right: -15%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatBlob 24s ease-in-out infinite reverse;
+}
+
+.blob3 {
+  position: fixed;
+  bottom: -15%;
+  left: 25%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatBlob 20s ease-in-out infinite 8s;
+}
+
+/* Header */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(7, 11, 19, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.headerInner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.875rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brandIcon {
+  font-size: 1.75rem;
+  filter: drop-shadow(0 0 16px rgba(34, 197, 94, 0.5));
+  position: relative;
+}
+
+.brandName {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 40%, #16a34a 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.025em;
+  animation: gradientShift 6s ease infinite;
+}
+
+.brandTagline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.05em;
+  margin-top: -2px;
+}
+
+.liveDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-block;
+  animation: pulseDot 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+.headerStats {
+  display: flex;
+  gap: 2rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.statNum {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.statLabel {
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Freshness strip */
+.freshnessWrapper {
+  max-width: 1400px;
+  margin: 1.25rem auto 0;
+  padding: 0 1.5rem;
+  position: relative;
+  z-index: 1;
+  animation: fadeIn 0.4s ease 0.15s both;
+}
+
+/* Main layout */
+.main {
+  max-width: 1400px;
+  margin: 1.25rem auto;
+  padding: 0 1.5rem 3rem;
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
+  animation: fadeIn 0.5s ease 0.25s both;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.filterSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.65);
+  flex-wrap: wrap;
+  animation: fadeIn 0.3s ease both;
+}
+
+.filterSummaryIcon { font-size: 0.9rem; }
+.filterSummary strong { color: rgba(255, 255, 255, 0.9); }
+
+/* Footer */
+.footer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
+  z-index: 1;
+}
+
+.footer p {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.2);
+  text-align: center;
+  line-height: 1.7;
+}
+
+.footer a {
+  color: rgba(34, 197, 94, 0.5);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer a:hover { color: #22c55e; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .main { flex-direction: column; }
+  .headerStats { display: none; }
+  .headerInner { padding: 0.75rem 1rem; }
+}
+
+@media (max-width: 600px) {
+  .freshnessWrapper { padding: 0 0.75rem; }
+  .main { padding: 0 0.75rem 2rem; }
+}
+

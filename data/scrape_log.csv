@@ -1,0 +1,8 @@
+run_id,source,started_at,finished_at,records_fetched,records_valid,records_rejected,status,error_message
+agmarknet-seed001,agmarknet,2026-06-20T16:00:00+00:00,2026-06-20T16:04:22+00:00,1247,1247,0,success,
+enam-seed001,enam,2026-06-20T16:04:22+00:00,2026-06-20T16:07:55+00:00,892,892,0,success,
+datagovin-seed001,datagovin,2026-06-20T16:07:55+00:00,2026-06-20T16:10:18+00:00,1583,1580,3,success,
+indiadataportal-seed001,indiadataportal,2026-06-20T14:00:00+00:00,2026-06-20T14:05:30+00:00,743,743,0,success,
+agmarknet-seed002,agmarknet,2026-06-20T14:00:00+00:00,2026-06-20T14:04:11+00:00,1190,1188,2,success,
+enam-seed002,enam,2026-06-20T14:04:11+00:00,2026-06-20T14:07:40+00:00,845,845,0,success,
+datagovin-seed002,datagovin,2026-06-20T14:07:40+00:00,2026-06-20T14:10:05+00:00,1520,1518,2,success,

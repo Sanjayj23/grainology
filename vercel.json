@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_GITHUB_USER": "Sanjayj23",
+    "NEXT_PUBLIC_GITHUB_REPO": "grainology"
+  }
+}
