@@ -6,3 +6,7 @@ indiadataportal-seed001,indiadataportal,2026-06-20T14:00:00+00:00,2026-06-20T14:
 agmarknet-seed002,agmarknet,2026-06-20T14:00:00+00:00,2026-06-20T14:04:11+00:00,1190,1188,2,success,
 enam-seed002,enam,2026-06-20T14:04:11+00:00,2026-06-20T14:07:40+00:00,845,845,0,success,
 datagovin-seed002,datagovin,2026-06-20T14:07:40+00:00,2026-06-20T14:10:05+00:00,1520,1518,2,success,
+datagovin-30bf9732,datagovin,2026-06-20T17:10:28.810558+00:00,2026-06-20T17:10:28.811194+00:00,0,0,0,failed,DATAGOVIN_API_KEY environment variable not set. Register at https://data.gov.in to get a free key.
+agmarknet-bb33fca7,agmarknet,2026-06-20T17:10:28.811447+00:00,2026-06-20T17:10:29.903952+00:00,0,0,0,partial,No valid records returned
+enam-2ad68de5,enam,2026-06-20T17:10:29.904214+00:00,2026-06-20T17:10:31.972321+00:00,0,0,0,partial,No valid records returned
+indiadataportal-1f9107b9,indiadataportal,2026-06-20T17:10:31.972585+00:00,2026-06-20T17:10:34.718463+00:00,0,0,0,partial,No valid records returned
