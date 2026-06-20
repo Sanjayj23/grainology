@@ -98,6 +98,7 @@ def scrape_agmarknet(
         date_str = target_date.strftime("%d-%b-%Y")
         
         # We might need to use JS to set the date if it's readonly
+        page.wait_for_selector('#cphBody_txtDate', state='attached', timeout=15000)
         page.evaluate(f"document.getElementById('cphBody_txtDate').value = '{date_str}';")
         
         page.locator("#cphBody_ddlCommodity").select_option(value=commodity_code)
