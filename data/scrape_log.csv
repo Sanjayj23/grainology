@@ -10,3 +10,7 @@ datagovin-30bf9732,datagovin,2026-06-20T17:10:28.810558+00:00,2026-06-20T17:10:2
 agmarknet-bb33fca7,agmarknet,2026-06-20T17:10:28.811447+00:00,2026-06-20T17:10:29.903952+00:00,0,0,0,partial,No valid records returned
 enam-2ad68de5,enam,2026-06-20T17:10:29.904214+00:00,2026-06-20T17:10:31.972321+00:00,0,0,0,partial,No valid records returned
 indiadataportal-1f9107b9,indiadataportal,2026-06-20T17:10:31.972585+00:00,2026-06-20T17:10:34.718463+00:00,0,0,0,partial,No valid records returned
+datagovin-a79a6be9,datagovin,2026-06-20T17:26:52.985384+00:00,2026-06-20T17:26:52.986045+00:00,0,0,0,failed,DATAGOVIN_API_KEY environment variable not set. Register at https://data.gov.in to get a free key.
+agmarknet-6fa239de,agmarknet,2026-06-20T17:26:52.986295+00:00,2026-06-20T17:26:54.234619+00:00,0,0,0,partial,No valid records returned
+enam-4f1bda6e,enam,2026-06-20T17:26:54.234873+00:00,2026-06-20T17:26:56.335513+00:00,0,0,0,partial,No valid records returned
+indiadataportal-0ba7f454,indiadataportal,2026-06-20T17:26:56.335749+00:00,2026-06-20T17:26:59.109116+00:00,0,0,0,partial,No valid records returned
