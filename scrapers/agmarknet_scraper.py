@@ -1,20 +1,15 @@
 """
 Agmarknet scraper — hits the ASP.NET form portal at agmarknet.gov.in.
-Handles __VIEWSTATE / __EVENTVALIDATION token handshake and pagination.
-
-Usage:
-    records = scrape_agmarknet(date.today())
+Uses Playwright to physically navigate the page, bypassing WAFs.
 """
 
 from __future__ import annotations
 import logging
 import time
-import random
 from datetime import date, datetime, timezone
 from typing import Optional
 
-import requests
-import cloudscraper
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 from bs4 import BeautifulSoup
 
 from schema import PriceRecord
@@ -24,46 +19,15 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://agmarknet.gov.in/SearchCommodityDis.aspx"
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/125.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-IN,en;q=0.9",
-    "Referer": "https://agmarknet.gov.in/",
-}
 
-
-def _get_viewstate(session: requests.Session) -> dict[str, str]:
-    """Fetch the landing page and extract ASP.NET hidden form tokens."""
-    resp = session.get(BASE_URL, headers=HEADERS, timeout=30)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "lxml")
-
-    def _val(name: str) -> str:
-        el = soup.find("input", {"name": name})
-        return el["value"] if el else ""
-
-    return {
-        "__VIEWSTATE": _val("__VIEWSTATE"),
-        "__VIEWSTATEGENERATOR": _val("__VIEWSTATEGENERATOR"),
-        "__EVENTVALIDATION": _val("__EVENTVALIDATION"),
-        "__EVENTTARGET": "",
-        "__EVENTARGUMENT": "",
-    }
-
-
-def _parse_table(soup: BeautifulSoup, fetched_at: datetime, price_date: date) -> list[PriceRecord]:
+def _parse_table(html: str, fetched_at: datetime, price_date: date) -> list[PriceRecord]:
     """Parse the results table from a response page."""
+    soup = BeautifulSoup(html, "lxml")
     records: list[PriceRecord] = []
     table = soup.find("table", {"id": "cphBody_GridPriceData"})
     if not table:
-        # Try alternate table IDs used in some responses
         table = soup.find("table", class_="tableagmark_new")
     if not table:
-        logger.warning("No data table found in Agmarknet response")
         return records
 
     rows = table.find_all("tr")[1:]  # skip header
@@ -72,8 +36,6 @@ def _parse_table(soup: BeautifulSoup, fetched_at: datetime, price_date: date) ->
         if len(cells) < 8:
             continue
         try:
-            # Column order: State, District, Market, Commodity, Variety, Grade, Min, Max, Modal, Arrivals
-            # (column order can vary; index by known header positions)
             raw_state    = cells[0]
             raw_district = cells[1]
             raw_market   = cells[2]
@@ -112,70 +74,77 @@ def _parse_table(soup: BeautifulSoup, fetched_at: datetime, price_date: date) ->
 
 def scrape_agmarknet(
     target_date: date,
+    page: Page,
     state_code: str = "0",  # "0" = All States
     commodity_code: str = "0",  # "0" = All Commodities
     max_pages: int = 50,
 ) -> list[PriceRecord]:
     """
-    Scrape Agmarknet for a given date.
-    Returns list of normalized PriceRecord objects.
+    Scrape Agmarknet for a given date using Playwright.
     """
-    session = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True})
     fetched_at = datetime.now(tz=timezone.utc)
     all_records: list[PriceRecord] = []
 
     logger.info("Agmarknet: starting scrape for %s", target_date)
 
     try:
-        viewstate = _get_viewstate(session)
+        page.goto(BASE_URL, wait_until="domcontentloaded", timeout=60000)
     except Exception as exc:
-        logger.error("Agmarknet: failed to get initial viewstate: %s", exc)
+        logger.error("Agmarknet: failed to load page: %s", exc)
         return []
 
-    form_data = {
-        **viewstate,
-        "ctl00$cphBody$ddlCommodity": commodity_code,
-        "ctl00$cphBody$ddlState": state_code,
-        "ctl00$cphBody$ddlDistrict": "0",
-        "ctl00$cphBody$ddlMarket": "0",
-        "ctl00$cphBody$txtDate": target_date.strftime("%d-%b-%Y"),
-        "ctl00$cphBody$btnGo": "Submit",
-    }
+    try:
+        # Fill the form
+        date_str = target_date.strftime("%d-%b-%Y")
+        
+        # We might need to use JS to set the date if it's readonly
+        page.evaluate(f"document.getElementById('cphBody_txtDate').value = '{date_str}';")
+        
+        page.locator("#cphBody_ddlCommodity").select_option(value=commodity_code)
+        page.locator("#cphBody_ddlState").select_option(value=state_code)
+        
+        # Click submit and wait for navigation or table load
+        page.locator("#cphBody_btnGo").click()
+        
+        # Wait for the table to appear, or a message saying no data
+        try:
+            page.wait_for_selector("#cphBody_GridPriceData, #cphBody_lblMessage", timeout=30000)
+        except PlaywrightTimeoutError:
+            logger.warning("Agmarknet: Table never loaded after submit.")
+            return []
+
+    except Exception as exc:
+        logger.error("Agmarknet: failed to submit form: %s", exc)
+        return []
+
+    # Check if there's a "No Data Found" message
+    msg = page.locator("#cphBody_lblMessage")
+    if msg.count() > 0 and "No Data Found" in msg.inner_text():
+        logger.info("Agmarknet: No Data Found for %s", target_date)
+        return []
 
     for page_num in range(1, max_pages + 1):
-        try:
-            resp = session.post(BASE_URL, data=form_data, headers=HEADERS, timeout=45)
-            resp.raise_for_status()
-        except requests.RequestException as exc:
-            logger.error("Agmarknet: request failed on page %d: %s", page_num, exc)
-            break
-
-        soup = BeautifulSoup(resp.text, "lxml")
-        page_records = _parse_table(soup, fetched_at, target_date)
+        # Allow table to fully render
+        time.sleep(1)
+        
+        html = page.content()
+        page_records = _parse_table(html, fetched_at, target_date)
         all_records.extend(page_records)
         logger.info("Agmarknet: page %d → %d records (total: %d)", page_num, len(page_records), len(all_records))
 
-        # Check for next page button
-        next_btn = soup.find("input", {"id": "cphBody_lnkbtnNextPage"}) or \
-                   soup.find("a", string=lambda t: t and "Next" in t)
-        if not next_btn or not page_records:
-            logger.info("Agmarknet: no more pages at page %d", page_num)
+        if not page_records:
             break
 
-        # Update viewstate for next page
-        viewstate = {
-            "__VIEWSTATE": soup.find("input", {"name": "__VIEWSTATE"})["value"] if soup.find("input", {"name": "__VIEWSTATE"}) else "",
-            "__VIEWSTATEGENERATOR": soup.find("input", {"name": "__VIEWSTATEGENERATOR"})["value"] if soup.find("input", {"name": "__VIEWSTATEGENERATOR"}) else "",
-            "__EVENTVALIDATION": soup.find("input", {"name": "__EVENTVALIDATION"})["value"] if soup.find("input", {"name": "__EVENTVALIDATION"}) else "",
-            "__EVENTTARGET": "ctl00$cphBody$lnkbtnNextPage",
-            "__EVENTARGUMENT": "",
-        }
-        form_data.update(viewstate)
-        # Remove submit button from subsequent page requests
-        form_data.pop("ctl00$cphBody$btnGo", None)
-
-        # Polite delay
-        time.sleep(random.uniform(1.0, 2.5))
+        # Check for next page button
+        next_btn = page.locator("input#cphBody_lnkbtnNextPage")
+        if next_btn.count() == 0:
+            logger.info("Agmarknet: no more pages at page %d", page_num)
+            break
+            
+        # Click next and wait for table to update
+        # We can wait for a request or just do a hard sleep since ASP.NET partial postbacks are tricky to intercept
+        next_btn.click()
+        time.sleep(3) # Wait for postback to complete
 
     logger.info("Agmarknet: finished — %d total records for %s", len(all_records), target_date)
     return all_records

@@ -4,5 +4,4 @@ lxml==5.2.1
 pydantic==2.7.1
 pandas==2.2.2
 python-dateutil==2.9.0
-cloudscraper==1.2.71
-
+playwright==1.44.0

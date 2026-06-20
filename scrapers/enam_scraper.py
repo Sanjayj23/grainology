@@ -1,9 +1,6 @@
 """
 eNAM scraper — fetches live T-0 price data from the eNAM (National
-Agriculture Market) platform.
-
-Endpoint discovered via DevTools network inspection of enam.gov.in.
-Provides real-time min/max prices for 1,000+ mandis across 18+ states.
+Agriculture Market) platform using Playwright's API context to bypass WAFs.
 """
 
 from __future__ import annotations
@@ -12,8 +9,7 @@ import time
 from datetime import date, datetime, timezone
 from typing import Optional
 
-import requests
-import cloudscraper
+from playwright.sync_api import Page
 
 from schema import PriceRecord
 from normalize import normalize_commodity, normalize_market
@@ -24,22 +20,9 @@ logger = logging.getLogger(__name__)
 ENAM_TRADE_URL = "https://enam.gov.in/web/ajax_ctrl/trade_data"
 ENAM_PRICE_URL = "https://enam.gov.in/web/ajax_ctrl/commodity_arrivals_list"
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/125.0.0.0 Safari/537.36"
-    ),
-    "X-Requested-With": "XMLHttpRequest",
-    "Accept": "application/json, text/javascript, */*; q=0.01",
-    "Referer": "https://enam.gov.in/web/dashboard/trade-data",
-}
-
-
 def _parse_enam_record(raw: dict, fetched_at: datetime, price_date: date) -> Optional[PriceRecord]:
     """Parse a single eNAM JSON record into a PriceRecord."""
     try:
-        # eNAM field names (may vary — update if endpoint shape changes)
         raw_state     = raw.get("stateName", raw.get("state", ""))
         raw_district  = raw.get("districtName", raw.get("district", ""))
         raw_market    = raw.get("apmc", raw.get("mandiName", raw.get("market", "")))
@@ -80,12 +63,12 @@ def _parse_enam_record(raw: dict, fetched_at: datetime, price_date: date) -> Opt
 
 def scrape_enam(
     target_date: Optional[date] = None,
+    page: Page = None,
     commodity_id: str = "",  # empty = all
     state_id: str = "",      # empty = all
 ) -> list[PriceRecord]:
     """
-    Fetch eNAM live price data.
-    Falls back gracefully if the endpoint is unavailable.
+    Fetch eNAM live price data using Playwright to bypass WAFs.
     """
     if target_date is None:
         target_date = date.today()
@@ -95,41 +78,33 @@ def scrape_enam(
 
     logger.info("eNAM: starting scrape for %s", target_date)
 
-    # Try the trade data endpoint first
     endpoints_to_try = [
         {
-            "url": ENAM_TRADE_URL,
-            "params": {
-                "language": "en",
-                "start_date": target_date.strftime("%d-%b-%Y"),
-                "end_date": target_date.strftime("%d-%b-%Y"),
-                "state_name": state_id,
-                "commodity_id": commodity_id,
-            }
+            "url": f"{ENAM_TRADE_URL}?language=en&start_date={target_date.strftime('%d-%b-%Y')}&end_date={target_date.strftime('%d-%b-%Y')}&state_name={state_id}&commodity_id={commodity_id}"
         },
         {
-            "url": ENAM_PRICE_URL,
-            "params": {
-                "date": target_date.strftime("%Y-%m-%d"),
-                "language": "en",
-            }
+            "url": f"{ENAM_PRICE_URL}?language=en&date={target_date.strftime('%Y-%m-%d')}"
         }
     ]
 
-    session = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True})
-    session.headers.update(HEADERS)
+    # First navigate to the homepage to get the WAF cookies/session
+    try:
+        page.goto("https://enam.gov.in/web/", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(2)
+    except Exception as exc:
+        logger.warning("eNAM: could not load homepage to get cookies: %s", exc)
 
     for attempt in endpoints_to_try:
         try:
-            resp = session.get(
-                attempt["url"],
-                params=attempt["params"],
-                timeout=30
-            )
-            resp.raise_for_status()
+            # Use page.request to fetch the JSON API while inheriting the browser cookies
+            resp = page.request.get(attempt["url"], headers={"X-Requested-With": "XMLHttpRequest"})
+            
+            if not resp.ok:
+                logger.warning("eNAM: endpoint %s failed: HTTP %s", attempt["url"], resp.status)
+                continue
+                
             data = resp.json()
 
-            # Handle different response shapes
             if isinstance(data, list):
                 raw_records = data
             elif isinstance(data, dict):
@@ -150,22 +125,15 @@ def scrape_enam(
                     all_records.append(record)
 
             if all_records:
-                break  # success — don't try fallback
+                break
 
             time.sleep(1)
 
-        except requests.RequestException as exc:
+        except Exception as exc:
             logger.warning("eNAM: endpoint %s failed: %s", attempt["url"], exc)
-        except ValueError as exc:
-            logger.warning("eNAM: JSON parse error at %s: %s", attempt["url"], exc)
 
     if not all_records:
-        logger.warning(
-            "eNAM: all endpoints failed or returned no data for %s. "
-            "Manually verify network endpoints at https://enam.gov.in/web/dashboard/trade-data "
-            "using browser DevTools → Network tab → XHR filter.",
-            target_date
-        )
+        logger.warning("eNAM: all endpoints failed or returned no data.")
 
     logger.info("eNAM: %d valid records for %s", len(all_records), target_date)
     return all_records

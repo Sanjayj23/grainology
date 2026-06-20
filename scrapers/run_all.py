@@ -1,11 +1,6 @@
 """
 Main orchestrator — runs all scrapers, validates output, writes data files,
 and updates scrape_log.csv.
-
-Usage (GitHub Actions):
-    python scrapers/run_all.py
-
-Exit code is always 0 so the git-commit step runs even on partial failure.
 """
 
 from __future__ import annotations
@@ -17,6 +12,8 @@ import sys
 import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
+
+from playwright.sync_api import sync_playwright
 
 # Add scrapers dir to path so imports work when run from repo root
 sys.path.insert(0, str(Path(__file__).parent))
@@ -56,7 +53,6 @@ def ensure_dirs() -> None:
 
 
 def write_latest(source: str, records: list[PriceRecord]) -> None:
-    """Write the latest snapshot as JSON (used by frontend)."""
     out = [r.to_dict() for r in records]
     path = LATEST_DIR / f"{source}.json"
     path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -64,7 +60,6 @@ def write_latest(source: str, records: list[PriceRecord]) -> None:
 
 
 def write_history(source: str, records: list[PriceRecord], run_date: date) -> None:
-    """Append today's records to historical CSV."""
     path = HISTORY_DIR / source / f"{run_date.isoformat()}.csv"
     if not records:
         return
@@ -80,7 +75,6 @@ def write_history(source: str, records: list[PriceRecord], run_date: date) -> No
 
 
 def append_scrape_log(run: ScrapeRun) -> None:
-    """Append a row to scrape_log.csv."""
     write_header = not SCRAPE_LOG.exists()
     with open(SCRAPE_LOG, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=SCRAPE_LOG_FIELDS)
@@ -93,8 +87,8 @@ def run_scraper(
     source: str,
     scraper_fn,
     target_date: date,
+    page=None
 ) -> ScrapeRun:
-    """Run a single scraper, write output, return a ScrapeRun log entry."""
     run_id = f"{source}-{uuid.uuid4().hex[:8]}"
     started_at = datetime.now(tz=timezone.utc)
     raw_records = []
@@ -103,7 +97,11 @@ def run_scraper(
 
     logger.info("=== Starting %s ===", source)
     try:
-        raw_records = scraper_fn(target_date)
+        if page and source != "datagovin":
+            raw_records = scraper_fn(target_date, page=page)
+        else:
+            raw_records = scraper_fn(target_date)
+            
         valid_records = [r for r in raw_records if isinstance(r, PriceRecord)]
 
         if valid_records:
@@ -148,7 +146,6 @@ def main() -> None:
     target_date = date.today()
     logger.info("Run date: %s", target_date)
 
-    # Check if data.gov.in key is present — it's the primary source
     if not os.environ.get("DATAGOVIN_API_KEY"):
         logger.warning(
             "DATAGOVIN_API_KEY not set — data.gov.in client will fail. "
@@ -163,11 +160,25 @@ def main() -> None:
     ]
 
     results = []
-    for source, fn in scrapers:
-        run = run_scraper(source, fn, target_date)
-        results.append(run)
+    
+    with sync_playwright() as p:
+        logger.info("Launching Playwright Chromium Browser...")
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            viewport={"width": 1920, "height": 1080}
+        )
+        page = context.new_page()
+        
+        # Route aborts for images/css to save bandwidth and speed up the scraper
+        page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
 
-    # Summary
+        for source, fn in scrapers:
+            run = run_scraper(source, fn, target_date, page=page)
+            results.append(run)
+            
+        browser.close()
+
     success = sum(1 for r in results if r.status == "success")
     partial = sum(1 for r in results if r.status == "partial")
     failed  = sum(1 for r in results if r.status == "failed")
@@ -178,7 +189,6 @@ def main() -> None:
         success, partial, failed, total_records
     )
 
-    # Always exit 0 so the git-commit step runs
     sys.exit(0)
 
 
