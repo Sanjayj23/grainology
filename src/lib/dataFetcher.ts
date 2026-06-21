@@ -6,10 +6,11 @@ const GITHUB_USER = process.env.NEXT_PUBLIC_GITHUB_USER || 'Sanjayj23';
 const GITHUB_REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || 'grainology';
 const BRANCH = 'main';
 
-// Primary: jsDelivr CDN (cached, fast, no CORS issues)
+// CDN fallback: cached and fast, but can lag behind fresh GitHub commits.
 const CDN_BASE = `https://cdn.jsdelivr.net/gh/${GITHUB_USER}/${GITHUB_REPO}@${BRANCH}`;
-// Fallback: raw GitHub (real-time but may have rate limits)
+// Primary production source: raw GitHub with cache busting for fresher updates.
 const RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}`;
+const DATA_BASE_URL = process.env.NEXT_PUBLIC_DATA_BASE_URL?.replace(/\/$/, '');
 
 const SOURCES = ['agmarknet', 'enam', 'datagovin', 'indiadataportal'] as const;
 
@@ -18,13 +19,17 @@ const SOURCES = ['agmarknet', 'enam', 'datagovin', 'indiadataportal'] as const;
 // In dev (localhost), data is served from /public/data/ as static assets.
 // In production, it's fetched from GitHub CDN + raw.github fallback.
 function getDataUrls(path: string): string[] {
+  const cacheBust = `v=${Date.now()}`;
   const isLocalhost =
     typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  if (isLocalhost) {
-    return [`/${path}`]; // served by Next.js dev server from /public/
+  if (DATA_BASE_URL) {
+    return [`${DATA_BASE_URL}/${path}?${cacheBust}`];
   }
-  return [`${CDN_BASE}/${path}`, `${RAW_BASE}/${path}`];
+  if (isLocalhost) {
+    return [`/${path}?${cacheBust}`, `${RAW_BASE}/${path}?${cacheBust}`, `${CDN_BASE}/${path}`];
+  }
+  return [`${RAW_BASE}/${path}?${cacheBust}`, `${CDN_BASE}/${path}`];
 }
 
 async function fetchJSON<T>(path: string): Promise<T | null> {
