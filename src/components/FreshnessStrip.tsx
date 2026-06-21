@@ -35,13 +35,7 @@ function getFreshnessLevel(
 }
 
 export default function FreshnessStrip({ latestPerSource }: Props) {
-  const sources: PriceRecord['source'][] = [
-    'vegetablemarketprice',
-    'datagovin',
-    'enam',
-    'agmarknet',
-    'indiadataportal',
-  ];
+  const sources: PriceRecord['source'][] = ['enam'];
 
   return (
     <div className={styles.strip}>

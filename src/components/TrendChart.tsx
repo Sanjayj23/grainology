@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer
+  Tooltip, ResponsiveContainer, Scatter, ScatterChart,
+  ReferenceLine,
 } from 'recharts';
-import type { PriceRecord, TrendDataPoint } from '@/lib/types';
+import type { TrendDataPoint } from '@/lib/types';
 import { SOURCE_META } from '@/lib/types';
 import styles from './TrendChart.module.css';
 
@@ -13,14 +13,6 @@ interface Props {
   data: TrendDataPoint[];
   loading?: boolean;
 }
-
-const SOURCES: PriceRecord['source'][] = [
-  'vegetablemarketprice',
-  'datagovin',
-  'enam',
-  'agmarknet',
-  'indiadataportal',
-];
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -36,9 +28,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
       {payload.map(p => (
         <div key={p.name} className={styles.tooltipRow}>
           <span className={styles.tooltipDot} style={{ background: p.color }} />
-          <span className={styles.tooltipSource}>
-            {SOURCE_META[p.name as keyof typeof SOURCE_META]?.label || p.name}
-          </span>
+          <span className={styles.tooltipSource}>eNAM</span>
           <span className={styles.tooltipPrice}>₹{p.value?.toLocaleString('en-IN')}</span>
         </div>
       ))}
@@ -46,52 +36,55 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
+function formatDate(d: string) {
+  try {
+    return new Date(d + 'T12:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  } catch { return d; }
+}
+
 export default function TrendChart({ data, loading }: Props) {
-  const [enabled, setEnabled] = useState<Record<string, boolean>>(
-    Object.fromEntries(SOURCES.map(source => [source, true]))
-  );
-
-  function formatDate(d: string) {
-    try {
-      return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-    } catch { return d; }
-  }
-
   if (loading) {
     return <div className={styles.skeletonChart} />;
   }
 
-  const hasData = data.some(d => SOURCES.some(s => d[s] !== undefined));
+  const enamColor = SOURCE_META.enam.color;
+  const validPoints = data.filter(d => d.enam !== undefined && d.enam > 0);
+  const hasData = validPoints.length > 0;
+  const isSingleDay = validPoints.length === 1;
 
   return (
     <div className={styles.wrapper}>
       <div className={styles.header}>
         <h2 className={styles.heading}>30-Day Price Trend</h2>
         <div className={styles.toggles}>
-          {SOURCES.map(s => {
-            const meta = SOURCE_META[s];
-            return (
-              <button
-                key={s}
-                className={`${styles.toggle} ${enabled[s] ? styles.toggleOn : styles.toggleOff}`}
-                style={enabled[s] ? { borderColor: meta.color, color: meta.color } : {}}
-                onClick={() => setEnabled(prev => ({ ...prev, [s]: !prev[s] }))}
-              >
-                <span
-                  className={styles.toggleDot}
-                  style={{ background: enabled[s] ? meta.color : 'rgba(255,255,255,0.2)' }}
-                />
-                {meta.label}
-              </button>
-            );
-          })}
+          <span
+            className={`${styles.toggle} ${styles.toggleOn}`}
+            style={{ borderColor: enamColor, color: enamColor }}
+          >
+            <span className={styles.toggleDot} style={{ background: enamColor }} />
+            eNAM
+          </span>
         </div>
       </div>
 
       {!hasData ? (
         <div className={styles.noData}>
           <span>📈</span>
-          <span>Trend data appears here once filters are applied and historical data is available.</span>
+          <span>Select a commodity and state to see price trends.</span>
+        </div>
+      ) : isSingleDay ? (
+        /* Single-day: show a clean price card instead of a broken line */
+        <div className={styles.singleDayWrapper}>
+          <div className={styles.singleDayCard}>
+            <div className={styles.singleDayLabel}>Today's Average Modal Price</div>
+            <div className={styles.singleDayPrice} style={{ color: enamColor }}>
+              ₹{validPoints[0].enam?.toLocaleString('en-IN')}
+            </div>
+            <div className={styles.singleDayDate}>{formatDate(validPoints[0].date)}</div>
+            <div className={styles.singleDayNote}>
+              Historical trend will build as daily syncs accumulate data.
+            </div>
+          </div>
         </div>
       ) : (
         <div className={styles.chartArea}>
@@ -118,27 +111,22 @@ export default function TrendChart({ data, loading }: Props) {
                 width={80}
               />
               <Tooltip content={<CustomTooltip />} />
-              {SOURCES.map(s =>
-                enabled[s] ? (
-                  <Line
-                    key={s}
-                    type="monotone"
-                    dataKey={s}
-                    stroke={SOURCE_META[s].color}
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 5, strokeWidth: 0 }}
-                    connectNulls
-                  />
-                ) : null
-              )}
+              <Line
+                type="monotone"
+                dataKey="enam"
+                stroke={enamColor}
+                strokeWidth={2}
+                dot={{ r: 3, fill: enamColor, strokeWidth: 0 }}
+                activeDot={{ r: 6, strokeWidth: 0 }}
+                connectNulls
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
 
       <div className={styles.footnote}>
-        Modal price (₹/quintal) — toggle sources above to compare
+        Average modal price across all markets (₹/quintal) — sourced from eNAM live database
       </div>
     </div>
   );

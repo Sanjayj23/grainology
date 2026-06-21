@@ -1,9 +1,0 @@
-source,fetched_at,price_date,state,district,market,commodity,variety,min_price,max_price,modal_price,arrivals_tonnes,raw_source_name
-agmarknet,2026-06-19T16:00:00+00:00,2026-06-19,Maharashtra,Nashik,Lasalgaon,Onion,Local,800,1350,1050,2380,Onion
-agmarknet,2026-06-19T16:00:00+00:00,2026-06-19,Maharashtra,Pune,Pune,Tomato,Local,1150,1950,1550,370,Tomato
-agmarknet,2026-06-19T16:00:00+00:00,2026-06-19,Uttar Pradesh,Agra,Agra,Potato,Jyoti,680,1050,860,1180,Potato
-agmarknet,2026-06-19T16:00:00+00:00,2026-06-19,Punjab,Ludhiana,Ludhiana,Wheat,PBW-502,2010,2140,2040,5500,Wheat
-agmarknet,2026-06-19T16:00:00+00:00,2026-06-19,Delhi,Delhi,Azadpur,Tomato,Hybrid,1750,2750,2150,610,Tomato
-agmarknet,2026-06-19T16:00:00+00:00,2026-06-19,Delhi,Delhi,Azadpur,Onion,Red,880,1480,1120,960,Onion
-agmarknet,2026-06-19T16:00:00+00:00,2026-06-19,Rajasthan,Jaipur,Jaipur,Wheat,Sharbati,2080,2330,2200,3150,Wheat
-agmarknet,2026-06-19T16:00:00+00:00,2026-06-19,Madhya Pradesh,Indore,Indore,Soyabean,JS-335,4150,4780,4480,2080,Soyabean

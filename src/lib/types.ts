@@ -1,6 +1,6 @@
-export type Source = 'agmarknet' | 'enam' | 'datagovin' | 'indiadataportal' | 'vegetablemarketprice';
+export type Source = 'enam';
 
-export const SOURCES: Source[] = ['agmarknet', 'enam', 'datagovin', 'indiadataportal', 'vegetablemarketprice'];
+export const SOURCES: Source[] = ['enam'];
 
 export interface PriceRecord {
   source: Source;
@@ -40,7 +40,7 @@ export interface FilterState {
 }
 
 export interface ComparisonRow {
-  source: PriceRecord['source'];
+  source: Source;
   label: string;
   color: string;
   min_price: number | null;
@@ -54,55 +54,23 @@ export interface ComparisonRow {
 
 export interface TrendDataPoint {
   date: string;
-  agmarknet?: number;
   enam?: number;
-  datagovin?: number;
-  indiadataportal?: number;
-  vegetablemarketprice?: number;
 }
 
 export interface SourceMeta {
-  id: PriceRecord['source'];
+  id: Source;
   label: string;
   color: string;
   description: string;
   url: string;
 }
 
-export const SOURCE_META: Record<PriceRecord['source'], SourceMeta> = {
-  agmarknet: {
-    id: 'agmarknet',
-    label: 'Agmarknet',
-    color: '#22c55e',
-    description: 'Govt. wholesale mandi prices (2000+ markets)',
-    url: 'https://agmarknet.gov.in',
-  },
+export const SOURCE_META: Record<Source, SourceMeta> = {
   enam: {
     id: 'enam',
     label: 'eNAM',
     color: '#3b82f6',
-    description: 'National Agriculture Market live prices',
+    description: 'National Agriculture Market – live prices from 1,000+ mandis',
     url: 'https://enam.gov.in',
-  },
-  datagovin: {
-    id: 'datagovin',
-    label: 'data.gov.in',
-    color: '#f59e0b',
-    description: 'Open Government Data Platform India',
-    url: 'https://data.gov.in',
-  },
-  indiadataportal: {
-    id: 'indiadataportal',
-    label: 'IndiaDataPortal',
-    color: '#a855f7',
-    description: 'ISB historical market price database',
-    url: 'https://indiadataportal.com',
-  },
-  vegetablemarketprice: {
-    id: 'vegetablemarketprice',
-    label: 'Vegetable Market Price',
-    color: '#10b981',
-    description: 'Live retail vegetable prices',
-    url: 'https://vegetablemarketprice.com',
   },
 };

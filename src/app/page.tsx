@@ -6,13 +6,12 @@ import ComparisonTable from '@/components/ComparisonTable';
 import TrendChart from '@/components/TrendChart';
 import FreshnessStrip from '@/components/FreshnessStrip';
 import type { PriceRecord, FilterState, ComparisonRow, TrendDataPoint, ScrapeLogEntry } from '@/lib/types';
-import { SOURCE_META } from '@/lib/types';
 import {
   fetchLatestAll,
-  fetchScrapeLog,
   buildComparisonRows,
   buildTrendData,
   getLatestScrapePerSource,
+  buildScrapeLogFromRecords,
 } from '@/lib/dataFetcher';
 import styles from './page.module.css';
 
@@ -35,42 +34,25 @@ export default function HomePage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [data, log] = await Promise.all([
-        fetchLatestAll(),
-        fetchScrapeLog(),
-      ]);
+      const data = await fetchLatestAll();
       setAllData(data);
-      setScrapeLog(log);
+      setScrapeLog(buildScrapeLogFromRecords(data));
       setLoading(false);
     }
     load();
-    // Refresh every 5 minutes
-    const interval = setInterval(load, 5 * 60 * 1000);
+    // Refresh every 2 minutes
+    const interval = setInterval(load, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
   const comparisonRows: ComparisonRow[] = buildComparisonRows(allData, filters);
   const trendData: TrendDataPoint[] = buildTrendData(allData, filters, 30);
   const latestPerSource = getLatestScrapePerSource(scrapeLog);
-  Object.entries(allData).forEach(([source, records]) => {
-    if (latestPerSource[source] || !records.length) return;
-    const latestRecord = [...records].sort((a, b) => b.fetched_at.localeCompare(a.fetched_at))[0];
-    latestPerSource[source] = {
-      run_id: `${source}-latest-file`,
-      source,
-      started_at: latestRecord.fetched_at,
-      finished_at: latestRecord.fetched_at,
-      records_fetched: records.length,
-      records_valid: records.length,
-      records_rejected: 0,
-      status: 'success',
-      error_message: '',
-    };
-  });
 
-  const totalRecords = Object.values(allData).reduce((sum, arr) => sum + arr.length, 0);
-  const sourcesActive = Object.values(allData).filter(arr => arr.length > 0).length;
-  const totalSources = Object.keys(SOURCE_META).length;
+  const enamRecords = allData['enam'] || [];
+  const totalRecords = enamRecords.length;
+  const sourcesActive = enamRecords.length > 0 ? 1 : 0;
+  const totalSources = 1;
 
   return (
     <div className={styles.root}>
@@ -144,13 +126,9 @@ export default function HomePage() {
       {/* Footer */}
       <footer className={styles.footer}>
         <p>
-          Data sourced from{' '}
-          <a href="https://agmarknet.gov.in" target="_blank" rel="noopener noreferrer">Agmarknet</a>,{' '}
-          <a href="https://enam.gov.in" target="_blank" rel="noopener noreferrer">eNAM</a>,{' '}
-          <a href="https://data.gov.in" target="_blank" rel="noopener noreferrer">data.gov.in</a>,{' '}
-          <a href="https://indiadataportal.com" target="_blank" rel="noopener noreferrer">IndiaDataPortal</a>,{' '}
-          <a href="https://vegetablemarketprice.com" target="_blank" rel="noopener noreferrer">Vegetable Market Price</a>.
-          Prices are indicative only. Not for trading decisions.
+          Live price data sourced from{' '}
+          <a href="https://enam.gov.in" target="_blank" rel="noopener noreferrer">eNAM (National Agriculture Market)</a>.
+          {' '}Prices are indicative only. Not for trading decisions.
         </p>
       </footer>
     </div>

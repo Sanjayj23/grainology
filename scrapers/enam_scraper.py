@@ -23,6 +23,7 @@ This module tries strategies in order of cost/certainty:
 """
 
 from __future__ import annotations
+import json as _json
 import logging
 import re
 import time
@@ -245,30 +246,49 @@ def _try_network_sniff(page: Page, target_date: date, fetched_at: datetime) -> l
 
     def on_response(response: Response) -> None:
         try:
-            ctype = response.headers.get("content-type", "")
-            if "json" not in ctype or response.status != 200:
+            if response.status != 200:
                 return
-            body = response.json()
-            captured.append({"url": response.url, "body": body})
+            try:
+                body_bytes = response.body()
+                body_text = body_bytes.decode("utf-8", errors="replace").strip()
+            except Exception:
+                return
+            if not body_text or body_text[0] not in ('{', '['):
+                return
+            try:
+                body = _json.loads(body_text)
+                if isinstance(body, (dict, list)):
+                    captured.append({"url": response.url, "body": body})
+            except Exception:
+                pass
         except Exception:
-            pass  # non-JSON or already-consumed body -- ignore
+            pass  # ignore consumed bodies etc.
 
     page.on("response", on_response)
     try:
         page.goto(ENAM_LIVE_PRICE_URL, wait_until="domcontentloaded", timeout=30000)
         time.sleep(2)
 
-        # Nudge the page into firing its data request, if it doesn't already
-        # auto-load on first paint. We don't know the exact control names on
-        # the current site, so we search broadly by role/text.
+        # eNAM Live Price page has "State Wise" / "Commodity Wise" radio buttons
+        # that must be clicked to trigger the actual data XHR.
         try:
-            submit_btn = page.get_by_role("button", name=re.compile(r"search|submit|go|view|show", re.I))
+            state_wise = page.get_by_label("State Wise")
+            if state_wise.count() > 0:
+                state_wise.first.click(timeout=8000)
+                logger.info("eNAM: clicked 'State Wise' radio button")
+                time.sleep(3)
+        except Exception as e:
+            logger.info("eNAM: could not click 'State Wise' radio: %s", e)
+
+        # Also try search/view/go buttons as backup
+        try:
+            submit_btn = page.get_by_role("button", name=re.compile(r"search|submit|go|view|show|get", re.I))
             if submit_btn.count() > 0:
-                submit_btn.first.click(timeout=8000)
+                submit_btn.first.click(timeout=5000)
         except Exception:
             pass
 
-        time.sleep(3)  # let any XHR triggered above land
+        time.sleep(4)  # let XHR land
     except Exception as exc:
         logger.warning("eNAM: network-sniff navigation failed: %s", exc)
     finally:
@@ -281,10 +301,13 @@ def _try_network_sniff(page: Page, target_date: date, fetched_at: datetime) -> l
 
     best_records: list[PriceRecord] = []
     for entry in captured:
-        records = _records_from_json(entry["body"], fetched_at, target_date)
+        logger.info("DEBUG URL: %s", entry["url"])
+        body = entry["body"]
+        logger.info("DEBUG KEYS: %s", list(body.keys()) if isinstance(body, dict) else type(body))
+        records = _records_from_json(body, fetched_at, target_date)
+        logger.info("eNAM: candidate endpoint %s yielded %d records", entry["url"], len(records))
         if len(records) > len(best_records):
             best_records = records
-            logger.info("eNAM: candidate endpoint %s yielded %d records", entry["url"], len(records))
 
     if not best_records:
         dump_diagnostics(page, "enam", "network_sniff_no_records")

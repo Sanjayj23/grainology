@@ -1,0 +1,1001 @@
+<html xmlns="https://www.w3.org/1999/xhtml"><head><style type="text/css">.swal-icon--error{border-color:#f27474;-webkit-animation:animateErrorIcon .5s;animation:animateErrorIcon .5s}.swal-icon--error__x-mark{position:relative;display:block;-webkit-animation:animateXMark .5s;animation:animateXMark .5s}.swal-icon--error__line{position:absolute;height:5px;width:47px;background-color:#f27474;display:block;top:37px;border-radius:2px}.swal-icon--error__line--left{-webkit-transform:rotate(45deg);transform:rotate(45deg);left:17px}.swal-icon--error__line--right{-webkit-transform:rotate(-45deg);transform:rotate(-45deg);right:16px}@-webkit-keyframes animateErrorIcon{0%{-webkit-transform:rotateX(100deg);transform:rotateX(100deg);opacity:0}to{-webkit-transform:rotateX(0deg);transform:rotateX(0deg);opacity:1}}@keyframes animateErrorIcon{0%{-webkit-transform:rotateX(100deg);transform:rotateX(100deg);opacity:0}to{-webkit-transform:rotateX(0deg);transform:rotateX(0deg);opacity:1}}@-webkit-keyframes animateXMark{0%{-webkit-transform:scale(.4);transform:scale(.4);margin-top:26px;opacity:0}50%{-webkit-transform:scale(.4);transform:scale(.4);margin-top:26px;opacity:0}80%{-webkit-transform:scale(1.15);transform:scale(1.15);margin-top:-6px}to{-webkit-transform:scale(1);transform:scale(1);margin-top:0;opacity:1}}@keyframes animateXMark{0%{-webkit-transform:scale(.4);transform:scale(.4);margin-top:26px;opacity:0}50%{-webkit-transform:scale(.4);transform:scale(.4);margin-top:26px;opacity:0}80%{-webkit-transform:scale(1.15);transform:scale(1.15);margin-top:-6px}to{-webkit-transform:scale(1);transform:scale(1);margin-top:0;opacity:1}}.swal-icon--warning{border-color:#f8bb86;-webkit-animation:pulseWarning .75s infinite alternate;animation:pulseWarning .75s infinite alternate}.swal-icon--warning__body{width:5px;height:47px;top:10px;border-radius:2px;margin-left:-2px}.swal-icon--warning__body,.swal-icon--warning__dot{position:absolute;left:50%;background-color:#f8bb86}.swal-icon--warning__dot{width:7px;height:7px;border-radius:50%;margin-left:-4px;bottom:-11px}@-webkit-keyframes pulseWarning{0%{border-color:#f8d486}to{border-color:#f8bb86}}@keyframes pulseWarning{0%{border-color:#f8d486}to{border-color:#f8bb86}}.swal-icon--success{border-color:#a5dc86}.swal-icon--success:after,.swal-icon--success:before{content:"";border-radius:50%;position:absolute;width:60px;height:120px;background:#fff;-webkit-transform:rotate(45deg);transform:rotate(45deg)}.swal-icon--success:before{border-radius:120px 0 0 120px;top:-7px;left:-33px;-webkit-transform:rotate(-45deg);transform:rotate(-45deg);-webkit-transform-origin:60px 60px;transform-origin:60px 60px}.swal-icon--success:after{border-radius:0 120px 120px 0;top:-11px;left:30px;-webkit-transform:rotate(-45deg);transform:rotate(-45deg);-webkit-transform-origin:0 60px;transform-origin:0 60px;-webkit-animation:rotatePlaceholder 4.25s ease-in;animation:rotatePlaceholder 4.25s ease-in}.swal-icon--success__ring{width:80px;height:80px;border:4px solid hsla(98,55%,69%,.2);border-radius:50%;box-sizing:content-box;position:absolute;left:-4px;top:-4px;z-index:2}.swal-icon--success__hide-corners{width:5px;height:90px;background-color:#fff;padding:1px;position:absolute;left:28px;top:8px;z-index:1;-webkit-transform:rotate(-45deg);transform:rotate(-45deg)}.swal-icon--success__line{height:5px;background-color:#a5dc86;display:block;border-radius:2px;position:absolute;z-index:2}.swal-icon--success__line--tip{width:25px;left:14px;top:46px;-webkit-transform:rotate(45deg);transform:rotate(45deg);-webkit-animation:animateSuccessTip .75s;animation:animateSuccessTip .75s}.swal-icon--success__line--long{width:47px;right:8px;top:38px;-webkit-transform:rotate(-45deg);transform:rotate(-45deg);-webkit-animation:animateSuccessLong .75s;animation:animateSuccessLong .75s}@-webkit-keyframes rotatePlaceholder{0%{-webkit-transform:rotate(-45deg);transform:rotate(-45deg)}5%{-webkit-transform:rotate(-45deg);transform:rotate(-45deg)}12%{-webkit-transform:rotate(-405deg);transform:rotate(-405deg)}to{-webkit-transform:rotate(-405deg);transform:rotate(-405deg)}}@keyframes rotatePlaceholder{0%{-webkit-transform:rotate(-45deg);transform:rotate(-45deg)}5%{-webkit-transform:rotate(-45deg);transform:rotate(-45deg)}12%{-webkit-transform:rotate(-405deg);transform:rotate(-405deg)}to{-webkit-transform:rotate(-405deg);transform:rotate(-405deg)}}@-webkit-keyframes animateSuccessTip{0%{width:0;left:1px;top:19px}54%{width:0;left:1px;top:19px}70%{width:50px;left:-8px;top:37px}84%{width:17px;left:21px;top:48px}to{width:25px;left:14px;top:45px}}@keyframes animateSuccessTip{0%{width:0;left:1px;top:19px}54%{width:0;left:1px;top:19px}70%{width:50px;left:-8px;top:37px}84%{width:17px;left:21px;top:48px}to{width:25px;left:14px;top:45px}}@-webkit-keyframes animateSuccessLong{0%{width:0;right:46px;top:54px}65%{width:0;right:46px;top:54px}84%{width:55px;right:0;top:35px}to{width:47px;right:8px;top:38px}}@keyframes animateSuccessLong{0%{width:0;right:46px;top:54px}65%{width:0;right:46px;top:54px}84%{width:55px;right:0;top:35px}to{width:47px;right:8px;top:38px}}.swal-icon--info{border-color:#c9dae1}.swal-icon--info:before{width:5px;height:29px;bottom:17px;border-radius:2px;margin-left:-2px}.swal-icon--info:after,.swal-icon--info:before{content:"";position:absolute;left:50%;background-color:#c9dae1}.swal-icon--info:after{width:7px;height:7px;border-radius:50%;margin-left:-3px;top:19px}.swal-icon{width:80px;height:80px;border-width:4px;border-style:solid;border-radius:50%;padding:0;position:relative;box-sizing:content-box;margin:20px auto}.swal-icon:first-child{margin-top:32px}.swal-icon--custom{width:auto;height:auto;max-width:100%;border:none;border-radius:0}.swal-icon img{max-width:100%;max-height:100%}.swal-title{color:rgba(0,0,0,.65);font-weight:600;text-transform:none;position:relative;display:block;padding:13px 16px;font-size:27px;line-height:normal;text-align:center;margin-bottom:0}.swal-title:first-child{margin-top:26px}.swal-title:not(:first-child){padding-bottom:0}.swal-title:not(:last-child){margin-bottom:13px}.swal-text{font-size:16px;position:relative;float:none;line-height:normal;vertical-align:top;text-align:left;display:inline-block;margin:0;padding:0 10px;font-weight:400;color:rgba(0,0,0,.64);max-width:calc(100% - 20px);overflow-wrap:break-word;box-sizing:border-box}.swal-text:first-child{margin-top:45px}.swal-text:last-child{margin-bottom:45px}.swal-footer{text-align:right;padding-top:13px;margin-top:13px;padding:13px 16px;border-radius:inherit;border-top-left-radius:0;border-top-right-radius:0}.swal-button-container{margin:5px;display:inline-block;position:relative}.swal-button{background-color:#7cd1f9;color:#fff;border:none;box-shadow:none;border-radius:5px;font-weight:600;font-size:14px;padding:10px 24px;margin:0;cursor:pointer}.swal-button:not([disabled]):hover{background-color:#78cbf2}.swal-button:active{background-color:#70bce0}.swal-button:focus{outline:none;box-shadow:0 0 0 1px #fff,0 0 0 3px rgba(43,114,165,.29)}.swal-button[disabled]{opacity:.5;cursor:default}.swal-button::-moz-focus-inner{border:0}.swal-button--cancel{color:#555;background-color:#efefef}.swal-button--cancel:not([disabled]):hover{background-color:#e8e8e8}.swal-button--cancel:active{background-color:#d7d7d7}.swal-button--cancel:focus{box-shadow:0 0 0 1px #fff,0 0 0 3px rgba(116,136,150,.29)}.swal-button--danger{background-color:#e64942}.swal-button--danger:not([disabled]):hover{background-color:#df4740}.swal-button--danger:active{background-color:#cf423b}.swal-button--danger:focus{box-shadow:0 0 0 1px #fff,0 0 0 3px rgba(165,43,43,.29)}.swal-content{padding:0 20px;margin-top:20px;font-size:medium}.swal-content:last-child{margin-bottom:20px}.swal-content__input,.swal-content__textarea{-webkit-appearance:none;background-color:#fff;border:none;font-size:14px;display:block;box-sizing:border-box;width:100%;border:1px solid rgba(0,0,0,.14);padding:10px 13px;border-radius:2px;transition:border-color .2s}.swal-content__input:focus,.swal-content__textarea:focus{outline:none;border-color:#6db8ff}.swal-content__textarea{resize:vertical}.swal-button--loading{color:transparent}.swal-button--loading~.swal-button__loader{opacity:1}.swal-button__loader{position:absolute;height:auto;width:43px;z-index:2;left:50%;top:50%;-webkit-transform:translateX(-50%) translateY(-50%);transform:translateX(-50%) translateY(-50%);text-align:center;pointer-events:none;opacity:0}.swal-button__loader div{display:inline-block;float:none;vertical-align:baseline;width:9px;height:9px;padding:0;border:none;margin:2px;opacity:.4;border-radius:7px;background-color:hsla(0,0%,100%,.9);transition:background .2s;-webkit-animation:swal-loading-anim 1s infinite;animation:swal-loading-anim 1s infinite}.swal-button__loader div:nth-child(3n+2){-webkit-animation-delay:.15s;animation-delay:.15s}.swal-button__loader div:nth-child(3n+3){-webkit-animation-delay:.3s;animation-delay:.3s}@-webkit-keyframes swal-loading-anim{0%{opacity:.4}20%{opacity:.4}50%{opacity:1}to{opacity:.4}}@keyframes swal-loading-anim{0%{opacity:.4}20%{opacity:.4}50%{opacity:1}to{opacity:.4}}.swal-overlay{position:fixed;top:0;bottom:0;left:0;right:0;text-align:center;font-size:0;overflow-y:auto;background-color:rgba(0,0,0,.4);z-index:10000;pointer-events:none;opacity:0;transition:opacity .3s}.swal-overlay:before{content:" ";display:inline-block;vertical-align:middle;height:100%}.swal-overlay--show-modal{opacity:1;pointer-events:auto}.swal-overlay--show-modal .swal-modal{opacity:1;pointer-events:auto;box-sizing:border-box;-webkit-animation:showSweetAlert .3s;animation:showSweetAlert .3s;will-change:transform}.swal-modal{width:478px;opacity:0;pointer-events:none;background-color:#fff;text-align:center;border-radius:5px;position:static;margin:20px auto;display:inline-block;vertical-align:middle;-webkit-transform:scale(1);transform:scale(1);-webkit-transform-origin:50% 50%;transform-origin:50% 50%;z-index:10001;transition:opacity .2s,-webkit-transform .3s;transition:transform .3s,opacity .2s;transition:transform .3s,opacity .2s,-webkit-transform .3s}@media (max-width:500px){.swal-modal{width:calc(100% - 20px)}}@-webkit-keyframes showSweetAlert{0%{-webkit-transform:scale(1);transform:scale(1)}1%{-webkit-transform:scale(.5);transform:scale(.5)}45%{-webkit-transform:scale(1.05);transform:scale(1.05)}80%{-webkit-transform:scale(.95);transform:scale(.95)}to{-webkit-transform:scale(1);transform:scale(1)}}@keyframes showSweetAlert{0%{-webkit-transform:scale(1);transform:scale(1)}1%{-webkit-transform:scale(.5);transform:scale(.5)}45%{-webkit-transform:scale(1.05);transform:scale(1.05)}80%{-webkit-transform:scale(.95);transform:scale(.95)}to{-webkit-transform:scale(1);transform:scale(1)}}</style><script type="text/javascript" async="" src="https://www.google-analytics.com/analytics.js"></script><script type="text/javascript" async="" defer="" src="//enam.gov.in/matomo/matomo.js"></script><script type="text/javascript" async="" defer="" src="//enam.gov.in/matomo/matomo.js"></script><script type="text/javascript" async="" defer="" src="//enam.gov.in/matomo/matomo.js"></script><script type="text/javascript" async="" defer="" src="//enam.gov.in/matomo/matomo.js"></script><script type="text/javascript">
+  var _paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//enam.gov.in/matomo/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '8']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
+
+<script type="text/javascript">
+  var _paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//enam.gov.in/matomo/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '7']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
+
+
+
+	<link rel="icon" href="https://enam.gov.in/web/assest/images/logo_fav.png">
+<title>
+	e-NAM | Trade Details	
+</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="keywords" content="">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/animate.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/custom-responsive.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/styles.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/style_white.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/print.css">
+<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+
+<link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Maven+Pro" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=ABeeZee" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Montserrat|Noto+Sans" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Raleway" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Maven+Pro:400,700|Oxygen" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Bitter|PT+Sans|Rubik|Signika|Varela+Round" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/green-box.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/orange-box.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/blue-box.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/red-box.css">
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/font-awesome.min.css">
+
+ <!-- new change -->
+ <link data-require="sweet-alert@*" data-semver="0.4.2" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css"> 
+ <!-- / new change -->
+
+<script type="text/javascript" src="https://enam.gov.in/web/assest/js/jquery.min.js"></script>
+
+<!-- for datepicker -->
+<script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+<link rel="stylesheet" type="text/css" href="https://enam.gov.in/web/assest/css/jquery-ui.css">
+<!--close for datepicker -->
+
+<script type="text/javascript" src="https://enam.gov.in/web/assest/js/jquery.masonry.min.js"></script>
+<script type="text/javascript" src="https://enam.gov.in/web/assest/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="https://enam.gov.in/web/assest/js/wow.js"></script>
+<script type="text/javascript" src="https://enam.gov.in/web/assest/js/theme.js"></script>
+<script type="text/javascript" src="https://enam.gov.in/web/assest/js/client.js"></script>
+
+<!-- for sweetalert -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.9.1/underscore-min.js"></script>
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
+<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script> 
+<!-- end sweet alert -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+
+<!-- Latest compiled JavaScript -->
+</head> <body id="enamHome" class="default-theme font-A page_5 green-theme"> 
+  
+<input type="hidden" id="global_previous_date" value="20-06-2026" style="">
+<input type="hidden" id="global_current_date" value="21-06-2026" style="">
+
+<!-- Matomo -->
+<!-- Matomo -->
+<script type="text/javascript">
+  var _paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//enam.gov.in/matomo/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '8']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
+
+<script type="text/javascript">
+  var _paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//enam.gov.in/matomo/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '7']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
+
+<header>
+<div class="header-section">
+	<div class="container-fuild">
+		<div class="container">
+			<div class="row">
+				<div class="col-lg-8 col-sm-8">
+					<div class="india-logo">
+						<img class="govt-logo" alt="India" src="https://enam.gov.in/web//assest/images/new-theme/g-logo.png">
+						<!--<img class="sfac-logo" alt="SFAC" src="https://enam.gov.in/web//assest/images/new-theme/sfac-logo.png" />-->
+						<div class="border-line">&nbsp;</div>
+						<img class="e-nam-logo" alt="eNam" src="https://enam.gov.in/web//assest/images/new-theme/enam-logo.png">
+					</div>
+				</div>
+				<div class="col-lg-4 col-sm-4">
+					<div class="header-right-section">
+						<div class="header-right-list h-bottom" style="font-size: 12px !important;">
+							<div class="pull-left">
+								<span><b>Call us</b></span>
+								<span><b>1800 270 0224</b></span>
+							</div>
+							<div class="pull-left lag-box-sec">
+								<span>Languages</span>
+								<select class="select-lang" id="language_selector">
+																																									<option value="1" selected="">English</option>
+																																																				<option value="2">हिंदी</option>
+																																																				<option value="3">ગુજરાતી</option>
+																																																				<option value="4">मराठी</option>
+																																																				<option value="5">తెలుగు</option>
+																																																				<option value="6">বাঙালি</option>
+																																																				<option value="7">தமிழ்</option>
+																																																				<option value="8">ଓଡ଼ିଆ</option>
+																																																				<option value="9">ਪੰਜਾਬੀ</option>
+																																																				<option value="12">മലയാളം</option>
+																																																				<option value="13">ಕನ್ನಡ</option>
+																																																				<option value="14">डोगरी</option>
+																																																				<option value="15">অসমীয়া</option>
+																																						</select>
+							</div>
+						</div>
+						<div class="header-right-list">
+							<a target="_blank" href="https://enam.gov.in/web/Enam_ctrl/enam_registration" title="Registration">
+								<img alt="Registrations" src="https://enam.gov.in/web//assest/images/new-theme/registrations.png">
+								<span><b>Registration</b></span>
+							</a>
+						</div>
+						<div class="header-right-list">
+						    <a class="border" target="_blank" href="https://enam.gov.in/NAMV2/faces/infrastructure/SLogin.jsf" title="Login">
+								<img alt="Login" src="https://enam.gov.in/web//assest/images/new-theme/login-user.png">
+								<span><b>Login Here</b></span>
+							</a>
+						</div>
+						<div class="color-theme">
+							<div class="green-theme-btn"><span title="Green Theme" class="green-box">&nbsp;&nbsp;&nbsp;</span></div>						
+							<div class="red-theme-btn"><span title="Red Theme" class="red-box">&nbsp;&nbsp;&nbsp;</span></div>
+							<div class="blue-theme-btn"><span title="Blue Theme" class="blue-box">&nbsp;&nbsp;&nbsp;</span></div>
+							<div class="orange-theme-btn"><span title="Dark Theme" class="orange-box">&nbsp;&nbsp;&nbsp;</span></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+</header>
+<div class="container-fuild menu-section nav-bg-th">
+	<div class="container" style="height: 40px;">
+		<nav>
+<div class="navbar navbar-static-top" role="navigation">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+            </div>
+            
+            <div class="collapse navbar-collapse" id="navbar-collapse-1" style="/*font-weight:bold;position:relative;z-index:1;*/">
+                <ul class="nav navbar-nav navigation">
+                	<li><a id="menuid_11" class="c1" title="Home" href="https://enam.gov.in/web/ ">Home</a></li><li><a id="menuid_38" class="c1" title="e-NAM Mandis" href="https://enam.gov.in/web/eNam-mandi-status">e-NAM Mandis</a></li><li class="dropdown"><a id="menuid_13" href="https://enam.gov.in/web/stakeholders-Involved" class="dropdown-toggle menu_click" data-toggle="dropdown" title="Stakeholders"> Stakeholders<b class="caret"></b></a><ul class="dropdown-menu nav-sub-menu"><li><a id="menuid_44" class="a1" href="https://enam.gov.in/web/stakeholders-Involved/Apmcs" title="APMCs"> APMCs</a></li><li><a id="menuid_19" class="a1" href="https://enam.gov.in/web/stakeholders-Involved/farmers" title="Farmers"> Farmers</a></li><li><a id="menuid_23" class="a1" href="https://enam.gov.in/web/stakeholders-Involved/traders" title="Traders"> Traders</a></li><li><a id="menuid_45" class="a1" href="https://enam.gov.in/web/stakeholders-Involved/fpos" title="FPOs"> FPOs</a></li><li><a id="menuid_46" class="a1" href="https://enam.gov.in/web/stakeholders-Involved/mandi-board" title="Mandi Board"> Mandi Board</a></li></ul></li><li><a id="menuid_18" class="c1" title="Aspirational Districts" href="https://enam.gov.in/web/aspirational-districts">Aspirational Districts</a></li><li class="dropdown"><a id="menuid_39" href="https://enam.gov.in/web/dashboard" class="dropdown-toggle menu_click" data-toggle="dropdown" title="Dashboard"> Dashboard<b class="caret"></b></a><ul class="dropdown-menu nav-sub-menu"><li><a id="menuid_51" class="a1" href="https://enam.gov.in/web/dashboard/trade-data" title="Trading Details"> Trading Details</a></li><li><a id="menuid_52" class="a1" href="https://enam.gov.in/web/dashboard/stakeholder-data" title="Stakeholders Data"> Stakeholders Data</a></li><li><a id="menuid_60" class="a1" href="https://enam.gov.in/web/state-unified-license/no-of-unified-licenses" title="State Unified Licenses"> State Unified Licenses</a></li><li><a id="menuid_61" class="b1" href="Http://enam.gov.in/analytics" title="e-NAM MIS"> e-NAM MIS</a></li><li><a id="menuid_65" class="b1" href="https://enam.gov.in/NAMV2/screen-board/index.html" title="Live Trade "> Live Trade </a></li><li><a id="menuid_73" class="b1" href="https://enam.gov.in/NAMREPORT/faces/infrastructure/SLogin.jsf" title="NAM Report"> NAM Report</a></li><li><a id="menuid_87" class="a1" href="https://enam.gov.in/web/dashboard/live_price" title="e-NAM Live Price Information"> e-NAM Live Price Information</a></li><li><a id="menuid_77" class="a1" href="https://enam.gov.in/web/dashboard/rems" title="ReMS Price Dissemination"> ReMS Price Dissemination</a></li><li><a id="menuid_82" class="a1" href="https://enam.gov.in/web/dashboard/agmarknet" title="Agmarknet Price Dashboard"> Agmarknet Price Dashboard</a></li><li><a id="menuid_93" class="a1" href="https://enam.gov.in/web/dashboard/Agm_Enam_ctrl" title="eNAM vs AGMARKNET Price Dashboard"> eNAM vs AGMARKNET Price Dashboard</a></li></ul></li><li class="dropdown"><a id="menuid_31" href="https://enam.gov.in/web/elearning-videos" class="dropdown-toggle menu_click" data-toggle="dropdown" title="eLearning Videos"> eLearning Videos<b class="caret"></b></a><ul class="dropdown-menu nav-sub-menu"><li><a id="menuid_115" class="b1" href="https://www.youtube.com/@e-NAMTutorials/playlists" title="e-NAM Tutorials"> e-NAM Tutorials</a></li></ul></li><li><a id="menuid_78" class="c1" title="e-NAM-Logistics" href="https://enam.gov.in/web/eNAM-Logistics-Providers">e-NAM-Logistics</a></li><li class="dropdown"><a id="menuid_33" href="https://enam.gov.in/web/resources" class="dropdown-toggle menu_click" data-toggle="dropdown" title="Resources"> Resources<b class="caret"></b></a><ul class="dropdown-menu nav-sub-menu"><li><a id="menuid_36" class="a1" href="https://enam.gov.in/web/resources/FAQs-of-eNam" title="FAQs of e-NAM"> FAQs of e-NAM</a></li><li><a id="menuid_53" class="a1" href="https://enam.gov.in/web/resources/registration-guideline" title="Registration Guidelines"> Registration Guidelines</a></li><li><a id="menuid_54" class="a1" href="https://enam.gov.in/web/resources/training-calender" title="Training Calender"> Training Calender</a></li><li><a id="menuid_102" class="a1" href="https://enam.gov.in/web/resources/fpo-meeting" title="FPO Meeting Link"> FPO Meeting Link</a></li><li><a id="menuid_59" class="a1" href="https://enam.gov.in/web/resources/manual" title="Manuals"> Manuals</a></li><li><a id="menuid_76" class="b1" href="https://enam.gov.in/web/assest/download/Revised-Operational-Guidelines-of-e-NAM.pdf" title="Operational Guidelines"> Operational Guidelines</a></li><li><a id="menuid_116" class="b1" href="https://enam.gov.in/web/assest/download/sul/Guidelines_for_QC_labs_at_mandis_under_e-NAM.pdf" title="QC Labs Guidelines"> QC Labs Guidelines</a></li><li><a id="menuid_55" class="a1" href="https://enam.gov.in/web/resources/faqs-for-enam-trader" title="FAQs of e-NAM Trader"> FAQs of e-NAM Trader</a></li><li><a id="menuid_62" class="a1" href="https://enam.gov.in/web/resources/online-payments" title="Online Payments"> Online Payments</a></li><li><a id="menuid_66" class="b1" href="http://agricoop.nic.in/programmes-schemes-listing" title="Schemes of DA &amp; FW"> Schemes of DA &amp; FW</a></li><li><a id="menuid_74" class="b1" href="http://sfacindia.com/Equity_grant.aspx" title="EGCGF Scheme of SFAC"> EGCGF Scheme of SFAC</a></li><li><a id="menuid_75" class="b1" href="http://sfacindia.com/VCA_Scheme.aspx" title="VCA Scheme of SFAC"> VCA Scheme of SFAC</a></li><li><a id="menuid_92" class="b1" href="assest/download/eNAM_Directory_20210720.pdf" title="e-NAM Directory"> e-NAM Directory</a></li><li><a id="menuid_114" class="b1" href="assest/download/LabsMandiesUnder_ename.pdf" title="Assaying Equipments"> Assaying Equipments</a></li></ul></li><li><a id="menuid_42" class="c1" title="Events Gallery" href="https://enam.gov.in/web/events">Events Gallery</a></li><li><a id="menuid_81" class="c1" title="Contact Us" href="https://enam.gov.in/web/contact-us">Contact Us</a></li><li><a id="menuid_80" class="c1" title="Kisan Rath" href="https://enam.gov.in/web/Kisan_Rath">Kisan Rath</a></li><li><a id="menuid_84" class="c1" title="FPO" href="https://enam.gov.in/web/fpo">FPO</a></li><li><a id="menuid_85" class="c1" title="Co-operative" href="https://enam.gov.in/web/co_operation">Co-operative</a></li><li><a id="menuid_86" class="c1" title="Weather Forecast" href="https://enam.gov.in/web/weather_forecast">Weather Forecast</a></li><li><a id="menuid_98" class="c1" title="Blog" href="https://enam.gov.in/web/blog">Blog</a></li><li><a id="menuid_99" class="c1" title="e-NAM Platform of Platforms" href="https://enam.gov.in/web/pop-dashboard">e-NAM Platform of Platforms</a></li><li class="dropdown"><a id="menuid_108" href="https://enam.gov.in/web/advance-demand-supply" class="dropdown-toggle menu_click" data-toggle="dropdown" title="Advance Demand/Supply"> Advance Demand/Supply<b class="caret"></b></a><ul class="dropdown-menu nav-sub-menu"><li><a id="menuid_109" class="a1" href="https://enam.gov.in/web/advance-supply" title="Advance Supply"> Advance Supply</a></li><li><a id="menuid_110" class="a1" href="https://enam.gov.in/web/advance-demand" title="Advance Demand"> Advance Demand</a></li></ul></li><li><a id="menuid_107" class="c1" title="National Seeds Corporation (NSC)" href="https://enam.gov.in/web/national-seed">National Seeds Corporation (NSC)</a></li><li><a id="menuid_112" class="c1" title="eNWR Trade" href="https://enam.gov.in/web/enwr-trade">eNWR Trade</a></li>                </ul>
+            </div><!-- /.navbar-collapse -->
+</div>
+        </nav>
+	</div>
+</div><input type="hidden" id="base_url" value="https://enam.gov.in/web/" style="">
+
+<section class="title-header-bg-apmc"></section>
+<section class="container-fuild content-section" style="background: #FCF8E3">
+<div class="container">
+<div class="" style="margin-top:10px;">
+<div class="col-md-12 bc-nav"><a href="https://enam.gov.in/web/" title="">Home</a>&nbsp;<i class="fa fa-angle-right"></i><i class="fa fa-angle-right"></i>&nbsp;<span id="bredcrum1">&nbsp;
+<a href="https://enam.gov.in/web/dashboard">dashboard</a>&nbsp;<i class="fa fa-angle-right"></i><i class="fa fa-angle-right"></i>&nbsp;e-NAM Live Price Information</span></div>
+<input type="hidden" id="previous_date" value="2026-06-21" style="">
+<input type="hidden" id="current_date" value="2026-06-21" style="">
+
+
+<input type="hidden" id="previous_date_1" value="2026-06-21" style="">
+<input type="hidden" id="current_date_1" value="2026-06-21" style="">
+
+
+<div class="col-md-12" style="padding:0px;"><h3 class="p-title"><span>e-NAM Live Price Information</span></h3></div>
+<div align="center">
+	  <img src="https://enam.gov.in/web//assest/images/live-image-2.gif" alt="Chicago" style="height: 65px;">
+	
+</div>
+<div align="center">
+        <label class="radio-inline"><input type="radio" name="colorRadio" value="green" style=""> <b>State Wise</b></label>
+        <label class="radio-inline"><input type="radio" name="colorRadio" value="blue" style=""> <b>Commodity Wise</b></label>
+ </div>
+ <script>
+		$(document).ready(function(){
+		    $('input[type="radio"]').click(function(){
+		        var inputValue = $(this).attr("value");
+		        var targetBox = $("." + inputValue);
+		        $(".box").not(targetBox).hide();
+		        $(targetBox).show();
+		    });
+		});
+</script>
+
+<div class="row green box " style="display: none">
+<div class="col-md-5"></div>
+<div class="col-md-2 emandi-select e-trade-inputs" align="center" style="margin-top: 15px">
+<b>State</b>
+<select class="form-control" id="min_max_state">
+	<option value="">-- Select State --</option>
+	<option value="">-- All --</option>
+</select>
+</div>
+
+<div class="col-md-2 emandi-select e-trade-inputs1" style="display: none"><b>From date</b> <input class="form-control" type="hidden" id="min_max_apmc_from_date" min="2026-06-14" max="2026-06-20" value="2026-06-21" style=""></div>
+<div class="col-md-2 emandi-select e-trade-inputs1" style="display: none"><b>To date</b> <input class="form-control" type="hidden" id="min_max_apmc_to_date" min="2026-06-14" max="2026-06-21" value="2026-06-21" style=""></div>
+
+
+<div class="col-md-12" style="margin-top:15px;">
+<div class="pull-left" style="font-size:15px;" id="mandi_content"><b>
+
+Trading detail on: <span id="table_mandi_from_date">23-04-2026 , 0:0:0</span></b>
+
+</div>
+<!-- <div class="pull-right"><b>Page:</b> <select class="form-control mandi-pagi" name="min_max_no_of_list" id="min_max_no_of_list"></select></div> -->
+</div>
+<div class="col-md-12 table-responsive">	
+<table class="table table-bordered">
+	<thead class="alert alert-success" style="background: #F2DEDE">
+		<tr style="background: #F2DEDE">
+			<!-- <th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th> -->
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;">APMC's</th>
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;">Commodity</th>
+            <th colspan="3" style="text-align:center;">Price in Rs.</th>
+			<!-- <th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th> -->
+			<!-- <th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th> -->
+			<!-- <th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th>
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th>
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th> -->
+		</tr>
+                <tr>
+                    <th>Min Price</th>
+			        <th>Modal Price</th>
+			        <th>Max Price</th>
+                </tr>
+	</thead>
+	<tbody class="tbodya alert alert-success" id="data_list"><tr><td colspan="11" style="text-align:center;">No record Found.</td></tr></tbody>
+</table>
+</div>
+</div>
+
+<div class="row blue box" style="display: none">
+<div class="col-md-5"></div>
+<div class="col-md-2 emandi-select e-trade-inputs" align="center" style="margin-top: 15px">
+<b>Commodity</b>
+<select class="form-control" id="min_max_commodity">
+	<option value="">-- Select Commodity --</option>
+	<option value="">-- All --</option>
+</select>
+</div>
+
+<div class="col-md-2 emandi-select e-trade-inputs1" style="display: none"><b>From date</b> <input class="form-control" type="date" id="min_max_apmc_from_date_1" min="2026-06-14" max="2026-06-20" style=""></div>
+<div class="col-md-2 emandi-select e-trade-inputs1" style="display: none"><b>To date</b> <input class="form-control" type="date" id="min_max_apmc_to_date_1" min="2026-06-14" max="2026-06-21" style=""></div>
+
+<div class="col-md-12" style="margin-top:15px;">
+<div class="pull-left" style="font-size:15px;" id="mandi_content"><b>
+
+Trading detail on: <span id="table_mandi_from_date_1">23-04-2026 , 0:0:0</span></b>
+
+</div>
+<!-- <div class="pull-right"><b>Page:</b> <select class="form-control mandi-pagi" name="min_max_no_of_list_1" 
+	id="min_max_no_of_list_1"></select></div> -->
+</div>
+<div class="col-md-12 table-responsive">	
+<table class="table table-bordered">
+	<thead>
+		<tr>
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;">State</th>
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;">APMC's</th>
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;">Commodity</th>
+            <th colspan="3" style="text-align:center;">Price in Rs.</th>
+	<!-- 		<th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th> -->
+			<!-- <th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th> -->
+			<!-- <th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th>
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th>
+			<th rowspan="2" style="padding-bottom:2.5%;text-align:center;"></th> -->
+		</tr>
+                <tr>
+                        <th>Min Price</th>
+			<th>Modal Price</th>
+			<th>Max Price</th>
+                </tr>
+	</thead>
+	<tbody class="tbodya alert alert-success" id="data_list_1"><tr><td colspan="11" style="text-align:center;">No record Found.</td></tr></tbody>
+</table>
+</div>
+</div>
+
+
+</div></div></section>
+
+
+
+<script type="text/javascript">
+	var baseUrl = $('#base_url').val();
+	current_date();
+	function current_date(){
+		$.ajax({
+	        type: 'POST',
+	        url: baseUrl+'Liveprice_ctrl/current_date',
+	        dataType: "json",
+	        data: {
+			},
+	        beforeSend: function(){},
+	        complete: function(){},
+	        success:function (response) {
+	        	if(response.status == 200){
+						$.each(response.data,function(key,value){
+							$('#table_mandi_from_date').html(formatDateTime(value.created_at));
+							$('#table_mandi_from_date_1').html(formatDateTime(value.created_at));
+						});
+				}
+	        }
+		});
+	}
+</script>
+
+
+<script>
+var baseUrl = $('#base_url').val();
+$.ajax({
+	type: 'post',
+	url: baseUrl+'Liveprice_ctrl/menu_activate/dashboard/live_price',
+	dataType: "json",
+	data:{},
+	beforeSend: function(){},
+	complete: function(){},
+	success: function (response){
+		if(response.status == 200){
+			console.log(response);
+			if (typeof response.data[0].id !== 'undefined') {
+				$('#menuid_'+response.data[0].id).addClass('active');	
+			}
+			if (typeof response.data[0].p_id !== 'undefined') {
+				$('#menuid_'+response.data[0].p_id).addClass('active');
+			}
+		    $('#bredcrum').html(response.bredcrum);	
+		}
+        else{
+			$('#bredcrum').html(response.bredcrum);	
+		}
+	}
+});
+</script>
+
+<script type="text/javascript">
+	$('#min_max_apmc_from_date').on('keydown', function(event) {
+		console.log(event);
+	    if (event.keyIdentifier == "Down") {
+	        event.preventDefault()
+	    }
+	}, false);
+
+	$('#min_max_apmc_to_date').on('keydown', function(event) {
+		console.log(event);
+	    if (event.keyIdentifier == "Down") {
+	        event.preventDefault()
+	    }
+	}, false);
+	
+function number_formate(num){
+	var a = num;
+	 var b = ",";
+	 if(a.length == 4){
+		 var position = 1;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+	 }
+	 else if(a.length == 5){
+		 var position = 2;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+	 }
+	 else if(a.length == 6){
+		 var position = 1;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+		 var position = 4;
+		 var output = [output.slice(0, position), b, output.slice(position)].join('');
+	 }
+	 else if(a.length == 7){
+		 var position = 2;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+		 var position = 5;
+		 var output = [output.slice(0, position), b, output.slice(position)].join('');
+	 }
+	 else if(a.length == 8){
+		 var position = 1;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+		 var position = 4;
+		 var output = [output.slice(0, position), b, output.slice(position)].join('');
+		 var position = 7;
+		 var output = [output.slice(0, position), b, output.slice(position)].join('');
+	 }
+	 else{
+		 var output = num;
+	 }
+	return output;
+}
+
+$('#min_max_apmc_from_date').val($('#previous_date').val());
+$('#min_max_apmc_to_date').val($('#previous_date').val());
+
+//////////////fetch state////////////////////////////////////
+	var from_date = $('#min_max_apmc_from_date').val();
+	var to_date =$('#min_max_apmc_to_date').val();
+$.ajax({
+	    type: 'POST',
+	    url: baseUrl+'Liveprice_ctrl/states_name_live',
+	    dataType: "json",
+	    data: 
+	    {
+	    	'fromDate' : from_date,
+	 		'toDate' : to_date
+	    },
+	    beforeSend: function(){
+	    },
+	    complete: function(){},
+		success:function (response) {
+			if(response.status == 200){
+				var x = '<option value="">-- Select State --</option>;<option value="">-- All --</option>';
+				$.each(response.data,function(key,value){
+
+					if (value.min_price != 0 && value.modal_price != 0 && value.max_price != 0 ) {
+					x = x + '<option value="'+ value.state +'">'+ value.state +'</option>';
+					}
+
+				});
+				$('#min_max_state').html(x);
+			}
+		}
+});
+$(document).on('change','#min_max_no_of_list',function(){
+	var value = $(this).val();
+	pagination(value);
+});
+
+$(document).on('change','#min_max_state',function(){
+	fetch_table_data();
+	$('#min_max_no_of_list').val(start);
+});
+
+var start = 0;
+var limit = 10;
+var data_array = [];
+
+function fetch_table_data(){
+	var stateName = $("#min_max_state option:selected").text();
+	var from_date = $('#min_max_apmc_from_date').val();
+	var to_date =$('#min_max_apmc_to_date').val();
+	
+	$.ajax({
+	    type: 'POST',
+	    url: baseUrl+'Liveprice_ctrl/trade_data_list',
+	    dataType: "json",
+	    data: {
+	    	'language' : 'en',
+	    	'stateName' : stateName,
+	    	'fromDate' : from_date,
+	 		'toDate' : to_date
+	    },
+	    beforeSend: function(){
+	    },
+	    complete: function(){},
+		success:function (response) {
+			if(response.status == 200){
+				data_array = [];
+	    		$.each(response.data,function(key,value){
+	    			data_array.push(value);
+	    		});
+	    		var array_length = data_array.length;
+	    		var pages = parseInt(parseInt(array_length)/parseInt(limit));
+	    		var y = '';
+	    		for(var i = 0;i<= pages; i++){
+	        		y = y + '<option value="'+ i +'">'+ parseInt(parseInt(i)+1) +'</option>';
+	    		}
+	    		$('#min_max_no_of_list').html(y);
+	    		pagination(start);
+			}
+			else{
+				$('#data_list').html('<tr><td colspan="11" style="text-align:center;">No record Found.</td></tr>');					
+			}
+			console.log(response);
+		}
+	});
+	
+	$('#mandi_from_date').html(formatDate($('#min_max_apmc_from_date').val()));
+	$('#mandi_to_date').html(formatDate($('#min_max_apmc_to_date').val()));
+}
+
+
+function pagination(start){
+	var array_length = data_array.length;
+// console.log(data_array);
+	if(start != 0){
+		slug = 1;
+		}
+	else{
+		slug = 0;
+	}
+	var x = '';
+	for(var i = parseInt(parseInt(start*limit)+slug); i <= (parseInt(parseInt(parseInt(start)*10))+5000); i++){
+		if(i < array_length){
+
+				if (data_array[i].min_price != 0 && data_array[i].modal_price != 0 && data_array[i].max_price != 0 ) 
+				{
+
+					//new added
+					//$('#table_mandi_from_date').html(formatDateTime(data_array[i].created_at));
+
+					x = x + '<tr>'+
+					// '<td align="center" style="text-align:center;">'+ data_array[i].state +'</td>'+
+					'<td align="center" style="text-align:center;">'+ data_array[i].apmc +'</td>'+
+					'<td align="center" style="text-align:center;">'+ data_array[i].commodity +'</td>'+
+					'<td align="center" style="text-align:center;">'+ number_formate(data_array[i].min_price) +'</td>'+
+					'<td align="center" style="text-align:center;">'+ number_formate(data_array[i].modal_price) +'</td>'+
+					'<td align="center" style="text-align:center;">'+ number_formate(data_array[i].max_price) +'</td>';
+					// '<td align="center" style="text-align:center;">'+ number_formate(data_array[i].commodity_arrivals) +'</td>'+
+					// '<td align="center" style="text-align:center;">'+ number_formate(data_array[i].commodity_traded) +'</td>'+
+					// '<td align="center" style="text-align:center;">'+ data_array[i].Commodity_Uom +'</td>'+
+					// '<td align="center" style="text-align:center;">'+ formatDate(data_array[i].created_at) +'</td>';
+					x = x + '</tr>';  
+
+				}
+		}
+		else{
+    		break;
+		}
+	} 
+	$('#data_list').html(x);
+}
+//-----------------------------------------------------------------------------------------------------//
+function formatDate(date) {
+     var d = new Date(date),
+         month = '' + (d.getMonth() + 1),
+         day = '' + d.getDate(),
+         year = d.getFullYear();
+
+     if (month.length < 2) month = '0' + month;
+     if (day.length < 2) day = '0' + day;
+
+     return [day, month, year].join('-');
+ }
+
+ function formatDateTime(date) {
+     var d = new Date(date),
+         month = '' + (d.getMonth() + 1),
+         day = '' + d.getDate(),
+         year = d.getFullYear();
+         hours = d.getHours();
+         minute = d.getMinutes();
+         second = d.getSeconds();
+
+     if (month.length < 2) month = '0' + month;
+     if (day.length < 2) day = '0' + day;
+
+    const dateString = "" + day + "-" + month + "-" + year;
+    const timeString = "" + hours + ":" + minute + ":" + second;
+    const datec = dateString + " , " + timeString;
+
+     return datec;
+ }
+
+//////////////////////////////////////////////////////////////////
+if((typeof($('#apmc_id_param').val()) != "undefined" && $('#apmc_id_param').val() !== 'null') && (typeof($('#apmc_id_param').val()) != "0" && $('#apmc_id_param').val() !== '0')){
+	setTimeout(function(){
+	console.log('first time function call');
+	  var state = $('#state_id_param').val();
+	  $('#min_max_state').val(state);
+	  $('#min_max_state').trigger('change');
+	}, 3000);
+
+	setTimeout(function(){
+	console.log('second time function call');
+	  commodity_list();
+	  $('#refresh').trigger('click');
+	}, 5000);
+}
+else{
+	fetch_table_data();
+}
+
+</script>
+
+<!-- commodity wise -->
+<script type="text/javascript">
+		$('#min_max_apmc_from_date_1').on('keydown', function(event) {
+		console.log(event);
+	    if (event.keyIdentifier == "Down") {
+	        event.preventDefault()
+	    }
+	}, false);
+
+	$('#min_max_apmc_to_date_1').on('keydown', function(event) {
+		console.log(event);
+	    if (event.keyIdentifier == "Down") {
+	        event.preventDefault()
+	    }
+	}, false);
+	
+function number_formate(num){
+	var a = num;
+	 var b = ",";
+	 if(a.length == 4){
+		 var position = 1;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+	 }
+	 else if(a.length == 5){
+		 var position = 2;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+	 }
+	 else if(a.length == 6){
+		 var position = 1;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+		 var position = 4;
+		 var output = [output.slice(0, position), b, output.slice(position)].join('');
+	 }
+	 else if(a.length == 7){
+		 var position = 2;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+		 var position = 5;
+		 var output = [output.slice(0, position), b, output.slice(position)].join('');
+	 }
+	 else if(a.length == 8){
+		 var position = 1;
+		 var output = [a.slice(0, position), b, a.slice(position)].join('');
+		 var position = 4;
+		 var output = [output.slice(0, position), b, output.slice(position)].join('');
+		 var position = 7;
+		 var output = [output.slice(0, position), b, output.slice(position)].join('');
+	 }
+	 else{
+		 var output = num;
+	 }
+	return output;
+}
+
+$('#min_max_apmc_from_date_1').val($('#previous_date_1').val());
+$('#min_max_apmc_to_date_1').val($('#previous_date_1').val());
+
+//////////////fetch state////////////////////////////////////
+	var from_date = $('#min_max_apmc_from_date_1').val();
+	var to_date =$('#min_max_apmc_to_date_1').val();
+$.ajax({
+	    type: 'POST',
+	    url: baseUrl+'Liveprice_ctrl/commodity_names',
+	    dataType: "json",
+	    data: 
+	    {
+	    	'fromDate' : from_date,
+	 		'toDate' : to_date
+	    },
+	    beforeSend: function(){
+	    },
+	    complete: function(){},
+		success:function (response) {
+			if(response.status == 200){
+				var x = '<option value="">-- Select Commodity --</option>;<option value="">-- All --</option>';
+				$.each(response.data,function(key,value){
+
+					if (value.min_price != 0 && value.modal_price != 0 && value.max_price != 0 ) {
+					x = x + '<option value="'+ value.commodity +'">'+ value.commodity +'</option>';
+					}
+				});
+				$('#min_max_commodity').html(x);
+			}
+		}
+});
+$(document).on('change','#min_max_no_of_list_1',function(){
+	var value = $(this).val();
+	pagination_1(value);
+});
+
+$(document).on('change','#min_max_commodity',function(){
+	fetch_table_data_1();
+	$('#min_max_no_of_list_1').val(start_1);
+});
+
+var start_1 = 0;
+var limit_1 = 10;
+var data_array_1 = [];
+
+function fetch_table_data_1(){
+	var commodity = $("#min_max_commodity option:selected").text();
+	var from_date = $('#min_max_apmc_from_date').val();
+	var to_date =$('#min_max_apmc_to_date').val();
+	
+	$.ajax({
+	    type: 'POST',
+	    url: baseUrl+'Liveprice_ctrl/trade_data_list_1',
+	    dataType: "json",
+	    data: {
+	    	'language' : 'en',
+	    	'commodity' : commodity,
+	    	'fromDate' : from_date,
+	 		'toDate' : to_date
+	    },
+	    beforeSend: function(){
+	    },
+	    complete: function(){},
+		success:function (response) {
+			if(response.status == 200){
+				data_array_1 = [];
+	    		$.each(response.data,function(key,value){
+	    			data_array_1.push(value);
+	    		});
+	    		var array_length_1 = data_array_1.length;
+	    		var pages = parseInt(parseInt(array_length_1)/parseInt(limit));
+	    		var y = '';
+	    		for(var i = 0;i<= pages; i++){
+	        		y = y + '<option value="'+ i +'">'+ parseInt(parseInt(i)+1) +'</option>';
+	    		}
+	    		$('#min_max_no_of_list_1').html(y);
+	    		pagination_1(start_1);
+			}
+			else{
+				$('#data_list_1').html('<tr><td colspan="11" style="text-align:center;">No record Found.</td></tr>');					
+			}
+			console.log(response);
+		}
+	});
+	
+	$('#mandi_from_date_1').html(formatDate($('#min_max_apmc_from_date_1').val()));
+	$('#mandi_to_date_1').html(formatDate($('#min_max_apmc_to_date_1').val()));
+}
+
+
+function pagination_1(start_1){
+	var array_length_1 = data_array_1.length;
+// console.log(data_array);
+	if(start_1 != 0){
+		slug_1 = 1;
+		}
+	else{
+		slug_1 = 0;
+	}
+	var x = '';
+	for(var i = parseInt(parseInt(start_1*limit_1)+slug_1); i <= (parseInt(parseInt(parseInt(start_1)*10))+5000); i++){
+		if(i < array_length_1){
+
+			if (data_array_1[i].min_price != 0 && data_array_1[i].modal_price != 0 && data_array_1[i].max_price != 0 ) 
+				{
+			x = x + '<tr>'+
+					'<td align="center" style="text-align:center;">'+ data_array_1[i].state +'</td>'+
+					'<td align="center" style="text-align:center;">'+ data_array_1[i].apmc +'</td>'+
+					'<td align="center" style="text-align:center;">'+ data_array_1[i].commodity +'</td>'+
+					'<td align="center" style="text-align:center;">'+ number_formate(data_array_1[i].min_price) +'</td>'+
+					'<td align="center" style="text-align:center;">'+ number_formate(data_array_1[i].modal_price) +'</td>'+
+					'<td align="center" style="text-align:center;">'+ number_formate(data_array_1[i].max_price) +'</td>';
+					// '<td align="center" style="text-align:center;">'+ number_formate(data_array_1[i].commodity_arrivals) +'</td>'+
+					// '<td align="center" style="text-align:center;">'+ number_formate(data_array_1[i].commodity_traded) +'</td>'+
+					// '<td align="center" style="text-align:center;">'+ data_array_1[i].Commodity_Uom +'</td>'+
+					// '<td align="center" style="text-align:center;">'+ formatDate(data_array_1[i].created_at) +'</td>';
+				x = x + '</tr>';  
+			}
+		}
+		else{
+    		break;
+		}
+	} 
+	$('#data_list_1').html(x);
+}
+//-----------------------------------------------------------------------------------------------------//
+function formatDate(date) {
+     var d = new Date(date),
+         month = '' + (d.getMonth() + 1),
+         day = '' + d.getDate(),
+         year = d.getFullYear();
+
+     if (month.length < 2) month = '0' + month;
+     if (day.length < 2) day = '0' + day;
+
+     return [day, month, year].join('-');
+ }
+
+//////////////////////////////////////////////////////////////////
+if((typeof($('#apmc_id_param').val()) != "undefined" && $('#apmc_id_param').val() !== 'null') && (typeof($('#apmc_id_param').val()) != "0" && $('#apmc_id_param').val() !== '0')){
+	setTimeout(function(){
+	console.log('first time function call');
+	  var commodity = $('#commodity_id_param').val();
+	  $('#min_max_commodity').val(commodity);
+	  $('#min_max_commodity').trigger('change');
+	}, 3000);
+
+	setTimeout(function(){
+	console.log('second time function call');
+	  commodity_list();
+	  $('#refresh').trigger('click');
+	}, 5000);
+}
+else{
+	fetch_table_data_1();
+}
+
+
+
+</script><style type="text/css">
+
+	.fab {
+	    color: #fdfdfd;
+	}
+</style>
+<div id="ak-top" style="display: none;"><i class="fa fa-angle-up"></i>top</div>
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.10/css/all.css" integrity="sha384-+d0P83n9kaQMCwj8F4RJB66tzIwOKmrdb46+porD/OvrJ+37WqIM7UoBtwHO6Nlg" crossorigin="anonymous">
+
+<footer>
+<div class="footer-section wow fadeInUp" data-wow-delay="0.3s">
+	<div class="container ">
+		<div class="row">
+			<ul class="footer-site-links list-unstyle list-inline text-center">
+				<li><a rel="noopener noreferrer nofollow" target="_blank" href="https://www.sfacindia.com/"><img alt="" src="https://enam.gov.in/web/assest/images/footer/img1.jpg"></a></li>
+				<li><a rel="noopener noreferrer nofollow" target="_blank" href="https://india.gov.in/"><img alt="" src="https://enam.gov.in/web/assest/images/footer/img2.jpg"></a></li>
+				<li><a rel="noopener noreferrer nofollow" target="_blank" href="https://www.digitalindia.gov.in/"><img alt="" src="https://enam.gov.in/web/assest/images/footer/img3.jpg"></a></li>
+				<li><a rel="noopener noreferrer nofollow" target="_blank" href="https://data.gov.in/"><img alt="" src="https://enam.gov.in/web/assest/images/footer/img4.jpg"></a></li>
+				<li><a rel="noopener noreferrer nofollow" target="_blank" href="https://meity.gov.in/"><img alt="" src="https://enam.gov.in/web/assest/images/footer/img5.jpg"></a></li>
+				<li><a rel="noopener noreferrer nofollow" target="_blank" href="https://pmindia.gov.in/"><img alt="" src="https://enam.gov.in/web/assest/images/footer/img6.jpg"></a></li>
+				<li><a rel="noopener noreferrer nofollow" target="_blank" href="http://www.nagarjunafertilizers.com/"><img alt="" src="https://enam.gov.in/web/assest/images/footer/img7.png"></a></li>
+<li><a rel="noopener noreferrer nofollow" target="_blank" href="https://digipay.gov.in/dashboard/Default.aspx"><img alt="" src="https://enam.gov.in/web/assest/images/footer/img8.png"></a></li>
+			</ul>
+		</div>
+	</div>
+	<div class="container">
+		<div class="row">
+			<!-- <div class="align-center footer-text-msg">Department of Agriculture, Cooperation & Farmers' Welfare, Ministry of Agriculture and Farmers' Welfare, Government of India</div> -->
+
+			<div class="align-center footer-text-msg">Department of Agriculture &amp; Farmers Welfare Ministry of Agriculture &amp; Farmers Welfare, Government of India</div>
+
+		</div>
+<div class="text-center" style="color: #fff;margin-bottom:5px;">Visitors Count: <span id="visitors_count">0</span>   |  <a href="https://enam.gov.in/web/Privacy-Policy" target="_blank" style="color: white">Privacy Policy</a></div>
+
+		<div id="social_media" style="text-align: center;">
+			<a class="btn" style="background-color: #3b5998;" href="https://www.facebook.com/SFACIndiaOfficial" target="_blank" role="button">
+				<i class="fab fa-facebook-f"></i>
+			</a>
+
+			<a class="btn" style="background-color: #ffffff;margin-left: 5px;" href="https://twitter.com/sfacindia" target="_blank" role="button">
+				<!-- <i class="fab fa-twitter" style="width: 9px;"></i> -->
+                <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2023 Fonticons, Inc. --><path d="M389.2 48h70.6L305.6 224.2 487 464H345L233.7 318.6 106.5 464H35.8L200.7 275.5 26.8 48H172.4L272.9 180.9 389.2 48zM364.4 421.8h39.1L151.1 88h-42L364.4 421.8z"></path></svg>
+			</a>
+			<a href="https://www.instagram.com/sfacindia/" target="_blank" role="button" style="margin-left: 4px">
+				<img style="width: 29px;" src="https://enam.gov.in/web//assest/images/insta.png">
+			</a>
+			<a class="btn" style="background-color: #0082ca;margin-left: 4px;" href="https://www.linkedin.com/company/sfacindia" target="_blank" role="button">
+				<i class="fab fa-linkedin-in" style="width: 9px;"></i>
+			</a>
+			<a class="btn" style="background-color: #ed302f;margin-left: 4px;" href="https://www.youtube.com/channel/UCSzrexBOH_Z1oyX1PPbgEeQ" target="_blank" role="button">
+				<i class="fab fa-youtube" style="width: 11px;margin-left: -3px;"></i>
+			</a>
+			<a href="https://www.kooapp.com/profile/sfacindia" target="_blank" role="button" style="margin-left: 2px;">
+				<img style="width: 32px;height: 28px; border-radius: 5px;" src="https://enam.gov.in/web//assest/images/koo.png">
+			</a>
+
+		</div>
+
+
+
+	<div class="align-center footer-text-msg">©Copyright 2023 National Agriculture Market Project. All rights reserved</div>
+	</div>
+
+<div class="modal fade" id="loader" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog" role="document" style="width:70px;top:40%">
+    <div class="modal-content" style="border-radius:10px;">
+      <div class="modal-body">
+		<img style="width:40px;" alt="" src="https://enam.gov.in/web//assest/images/gif-load.gif">
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+
+
+<div class="modal" id="Wheat_gram" role="dialog" tabindex="-1">
+<div class="modal-dialog" role="document">
+<div class="modal-content">
+<div class="modal-header commodity-list-h">
+<img id="commodity_title_image" style="float:left;margin-right:20px;" alt="" src=""> 
+<h4 class="modal-title"><span class="commo-p">Commodity Parameter - </span><span id="commodity_name"></span><br><span id="commodity_title"></span></h4>
+<button aria-label="Close" class="close" data-dismiss="modal" type="button"><span aria-hidden="true">×</span></button></div>
+
+<div id="commodity_desc" class="modal-body"></div>
+</div>
+</div>
+</div>
+
+
+
+<script type="text/javascript">
+$('#ak-top').hide();
+    $(window).scroll(function(){
+      if($(this).scrollTop() > 300){
+        $('#ak-top').fadeIn();
+      }else{
+        $('#ak-top').fadeOut();
+      }
+    });
+  
+    $("#ak-top").click(function(){
+      $('html,body').animate({scrollTop:0},600);
+    });
+</script>
+</div>
+</footer>
+
+<div id="state_click" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <div class="modal-content mandis-list-pop">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">×</button>
+        
+      </div>
+      <div class="modal-body text-center">
+<img alt="" style="width:500px;" src="https://enam.gov.in/web//assest/images/new-theme/map.jpg">
+      </div>
+      <div class="modal-footer">
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="hidden" id="uniqueCodeInput" name="uniqueCode" style="">
+<input type="hidden" id="alreadyexistcode" name="alreadyexistcode" style="">
+
+<script type="text/javascript" async="" src="https://www.googletagmanager.com/gtag/js?id=UA-128172535-1"></script>
+<script type="text/javascript">
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-128172535-1');
+</script>
+
+<script type="text/javascript">
+if ($('#language_selector').val() == 12)
+{
+//alert("works");
+$('.font-A .quick-link-list li a').css("font-size", "8.5px");
+}
+</script>
+
+<script type="text/javascript">
+if ($('#language_selector').val() == 13)
+{
+//alert("okay");
+$('.font-A .quick-link-list li a').css("font-size", "11px");
+}
+</script>
+
+
+
+</body></html>
