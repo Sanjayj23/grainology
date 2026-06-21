@@ -1,5 +1,9 @@
+export type Source = 'agmarknet' | 'enam' | 'datagovin' | 'indiadataportal' | 'vegetablemarketprice';
+
+export const SOURCES: Source[] = ['agmarknet', 'enam', 'datagovin', 'indiadataportal', 'vegetablemarketprice'];
+
 export interface PriceRecord {
-  source: 'agmarknet' | 'enam' | 'datagovin' | 'indiadataportal' | 'vegetablemarketprice';
+  source: Source;
   fetched_at: string; // ISO datetime UTC
   price_date: string; // YYYY-MM-DD
   state: string;
@@ -96,9 +100,9 @@ export const SOURCE_META: Record<PriceRecord['source'], SourceMeta> = {
   },
   vegetablemarketprice: {
     id: 'vegetablemarketprice',
-    label: 'Veg Market Price',
-    color: '#ec4899',
-    description: 'Live retail & wholesale vegetable prices',
+    label: 'Vegetable Market Price',
+    color: '#10b981',
+    description: 'Live retail vegetable prices',
     url: 'https://vegetablemarketprice.com',
   },
 };

@@ -1,0 +1,28 @@
+name: Daily Commodity Price Sync
+
+on:
+  schedule:
+    # Triggers automatically every single day at 19:30 IST (14:00 UTC)
+    - cron: '0 14 * * *'
+  workflow_dispatch: # Allows you to trigger the sync manually from the GitHub UI for testing
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Initialize Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Architecture Dependencies
+        run: npm install
+
+      - name: Run Data Extraction Pipeline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx ts-node scripts/sync-prices.ts
