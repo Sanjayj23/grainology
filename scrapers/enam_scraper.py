@@ -41,6 +41,7 @@ ENAM_HOME_URL = "https://enam.gov.in/web/"
 ENAM_LIVE_PRICE_URL = "https://enam.gov.in/web/dashboard/live_price"
 ENAM_TRADE_URL = "https://enam.gov.in/web/ajax_ctrl/trade_data"
 ENAM_PRICE_URL = "https://enam.gov.in/web/ajax_ctrl/commodity_arrivals_list"
+ENAM_LIVE_CTRL = "https://enam.gov.in/web/Liveprice_ctrl"
 
 
 def _parse_enam_record(raw: dict, fetched_at: datetime, price_date: date) -> Optional[PriceRecord]:
@@ -55,8 +56,14 @@ def _parse_enam_record(raw: dict, fetched_at: datetime, price_date: date) -> Opt
         min_p   = float(str(raw.get("minPrice", raw.get("min_price", 0))).replace(",", "") or 0)
         max_p   = float(str(raw.get("maxPrice", raw.get("max_price", 0))).replace(",", "") or 0)
         modal_p = float(str(raw.get("modalPrice", raw.get("modal_price", max_p))).replace(",", "") or 0)
-        arrivals = raw.get("arrivals", raw.get("totalArrival", None))
+        arrivals = raw.get(
+            "arrivals",
+            raw.get("totalArrival", raw.get("commodity_arrivals", None))
+        )
         arrivals_f = float(str(arrivals).replace(",", "")) if arrivals else None
+        unit = str(raw.get("Commodity_Uom", raw.get("unit", ""))).lower()
+        if arrivals_f is not None and ("qui" in unit or "quintal" in unit):
+            arrivals_f = arrivals_f * 0.1
 
         if not raw_commodity or not raw_state:
             return None
@@ -140,6 +147,96 @@ def _try_known_endpoints(page: Page, target_date: date, fetched_at: datetime) ->
     return []
 
 
+def _api_post(page: Page, endpoint: str, form: Optional[dict] = None) -> Optional[dict]:
+    try:
+        resp = page.request.post(
+            f"{ENAM_LIVE_CTRL}/{endpoint}",
+            form=form or {},
+            headers={
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": ENAM_LIVE_PRICE_URL,
+            },
+        )
+        if not resp.ok:
+            logger.info("eNAM: Liveprice_ctrl/%s -> HTTP %s", endpoint, resp.status)
+            return None
+        data = resp.json()
+        if isinstance(data, dict) and data.get("status") == 200:
+            return data
+        logger.info("eNAM: Liveprice_ctrl/%s returned non-success payload: %s", endpoint, data)
+    except Exception as exc:
+        logger.info("eNAM: Liveprice_ctrl/%s failed: %s", endpoint, exc)
+    return None
+
+
+def _latest_liveprice_date(page: Page, fallback: date) -> date:
+    data = _api_post(page, "current_date")
+    if not data:
+        return fallback
+    rows = data.get("data") or []
+    if not rows:
+        return fallback
+    date_str = str(rows[0].get("created_at", "")).split(" ")[0]
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except Exception:
+        return fallback
+
+
+def _try_liveprice_ctrl(page: Page, target_date: date, fetched_at: datetime) -> list[PriceRecord]:
+    """Current eNAM live-price dashboard API.
+
+    The dashboard posts to Liveprice_ctrl endpoints. The all-state/all-
+    commodity placeholders can return {"status":500}, so the robust path is:
+    get the date eNAM says is current, get concrete states for that date,
+    then call trade_data_list once per state.
+    """
+    try:
+        page.goto(ENAM_LIVE_PRICE_URL, wait_until="domcontentloaded", timeout=30000)
+        time.sleep(1)
+    except Exception as exc:
+        logger.info("eNAM: could not load live price dashboard before API calls: %s", exc)
+
+    live_date = _latest_liveprice_date(page, target_date)
+    if live_date != target_date:
+        logger.warning(
+            "eNAM: dashboard latest date is %s; requested %s. Using dashboard date.",
+            live_date, target_date,
+        )
+
+    date_str = live_date.strftime("%Y-%m-%d")
+    states_payload = _api_post(
+        page,
+        "states_name_live",
+        {"fromDate": date_str, "toDate": date_str},
+    )
+    state_rows = (states_payload or {}).get("data") or []
+    states = [str(row.get("state", "")).strip() for row in state_rows if row.get("state")]
+
+    if not states:
+        logger.info("eNAM: Liveprice_ctrl returned no states for %s", date_str)
+        return []
+
+    all_records: list[PriceRecord] = []
+    for state_name in states:
+        data = _api_post(
+            page,
+            "trade_data_list",
+            {
+                "language": "en",
+                "stateName": state_name,
+                "fromDate": date_str,
+                "toDate": date_str,
+            },
+        )
+        records = _records_from_json(data, fetched_at, live_date) if data else []
+        logger.info("eNAM: Liveprice_ctrl state=%s -> %d records", state_name, len(records))
+        all_records.extend(records)
+        time.sleep(0.25)
+
+    return all_records
+
+
 def _try_network_sniff(page: Page, target_date: date, fetched_at: datetime) -> list[PriceRecord]:
     """Load the live dashboard for real and capture whatever JSON XHR it
     fires, instead of guessing the endpoint by hand. Self-heals across
@@ -206,6 +303,11 @@ def scrape_enam(target_date: Optional[date], page: Page) -> list[PriceRecord]:
         target_date = date.today()
     fetched_at = datetime.now(tz=timezone.utc)
     logger.info("eNAM: starting scrape for %s", target_date)
+
+    records = _try_liveprice_ctrl(page, target_date, fetched_at)
+    if records:
+        logger.info("eNAM: %d valid records for %s (Liveprice_ctrl)", len(records), target_date)
+        return records
 
     records = _try_known_endpoints(page, target_date, fetched_at)
     if records:
