@@ -42,10 +42,10 @@ logger = logging.getLogger(__name__)
 
 API_BASE = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
 PAGE_LIMIT = 500          # smaller pages -> lower per-request timeout risk
-REQUEST_TIMEOUT = 45      # seconds -- data.gov.in is slow; 30s was too tight
-MAX_ATTEMPTS = 4          # attempts per page before giving up on that page
-BACKOFF_BASE = 3          # seconds; attempt N waits BACKOFF_BASE * 2**(N-1)
-MAX_DAYS_BACK = 4         # how many days to scan back if a date has 0 records
+REQUEST_TIMEOUT = 30      # seconds -- trimmed so we fit in the 30-min GH Action timeout
+MAX_ATTEMPTS = 2          # 2 attempts per page; more retries = more timeout risk
+BACKOFF_BASE = 2          # seconds; attempt N waits BACKOFF_BASE * 2**(N-1)
+MAX_DAYS_BACK = 2         # scan back only 2 days; keeps total budget well under 10 min
 
 
 def _get_api_key() -> str:
