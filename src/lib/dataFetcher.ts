@@ -12,7 +12,7 @@ const CDN_BASE = `https://cdn.jsdelivr.net/gh/${GITHUB_USER}/${GITHUB_REPO}@${BR
 const RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}`;
 const DATA_BASE_URL = process.env.NEXT_PUBLIC_DATA_BASE_URL?.replace(/\/$/, '');
 
-const SOURCES = ['agmarknet', 'enam', 'datagovin', 'indiadataportal'] as const;
+const SOURCES = ['datagovin', 'enam', 'agmarknet', 'indiadataportal', 'vegetablemarketprice'] as const;
 
 // ── Fetch helpers ────────────────────────────────────────────────
 

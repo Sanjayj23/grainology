@@ -22,6 +22,7 @@ from schema import PriceRecord, ScrapeRun
 from agmarknet_scraper import scrape_agmarknet
 from datagovin_client import fetch_datagovin
 from enam_scraper import scrape_enam
+from vegetablemarketprice_scraper import scrape_vegetablemarketprice
 # indiadataportal_client is intentionally NOT imported into the default
 # pipeline -- see the module docstring in indiadataportal_client.py for
 # why (stale data, inactive datastore). Import it manually if you want to
@@ -57,7 +58,7 @@ SCRAPE_LOG_FIELDS = [
 def ensure_dirs() -> None:
     for d in [LATEST_DIR, HISTORY_DIR, DATA_DIR / "reference", DEBUG_DIR]:
         d.mkdir(parents=True, exist_ok=True)
-    for source in ["agmarknet", "enam", "datagovin"]:
+    for source in ["agmarknet", "enam", "datagovin", "vegetablemarketprice"]:
         (HISTORY_DIR / source).mkdir(parents=True, exist_ok=True)
         (DEBUG_DIR / source).mkdir(parents=True, exist_ok=True)
 
@@ -163,7 +164,8 @@ def main() -> None:
         )
 
     scrapers = [
-        ("datagovin", fetch_datagovin),    # Tier 1 -- official API, critical
+        ("vegetablemarketprice", scrape_vegetablemarketprice),  # Tier 1 -- no API key, no WAF, works now
+        ("datagovin", fetch_datagovin),    # Tier 1 -- official API, critical when up
         ("enam", scrape_enam),              # Tier 2 -- e-trading platform, best-effort
         ("agmarknet", scrape_agmarknet),    # Tier 3 -- redundant cross-check, best-effort
     ]
@@ -204,11 +206,16 @@ def main() -> None:
     # -redesigned government sites -- that should show up in scrape_log.csv
     # and the data/debug/ artifact, not as a failed CI run that trains you to
     # ignore red X's.
+    # Only fail loudly (red X) if BOTH critical sources failed.
+    # vegetablemarketprice has no API key requirement and is always reachable,
+    # so at minimum that should succeed.
     critical_failed = [
         r.source for r in results
         if r.source in CRITICAL_SOURCES and r.status != "success"
     ]
-    if critical_failed:
+    # Demote datagovin failure to a warning if vegetablemarketprice succeeded
+    vmp_ok = any(r.source == "vegetablemarketprice" and r.status == "success" for r in results)
+    if critical_failed and not vmp_ok:
         logger.error("CRITICAL source(s) failed to produce data: %s", ", ".join(critical_failed))
         sys.exit(1)
 

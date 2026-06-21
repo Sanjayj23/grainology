@@ -28,7 +28,7 @@ CANONICAL_COMMODITIES: set[str] = _load_canonical_names(
 )
 CANONICAL_STATES: set[str] = _load_canonical_names(_REF_DIR / "state_map.json")
 
-VALID_SOURCES = {"agmarknet", "enam", "datagovin", "indiadataportal"}
+VALID_SOURCES = {"agmarknet", "enam", "datagovin", "indiadataportal", "vegetablemarketprice"}
 
 
 class PriceRecord(BaseModel):
