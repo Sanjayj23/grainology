@@ -1,5 +1,5 @@
 export interface PriceRecord {
-  source: 'agmarknet' | 'enam' | 'datagovin' | 'indiadataportal';
+  source: 'agmarknet' | 'enam' | 'datagovin' | 'indiadataportal' | 'vegetablemarketprice';
   fetched_at: string; // ISO datetime UTC
   price_date: string; // YYYY-MM-DD
   state: string;
@@ -54,6 +54,7 @@ export interface TrendDataPoint {
   enam?: number;
   datagovin?: number;
   indiadataportal?: number;
+  vegetablemarketprice?: number;
 }
 
 export interface SourceMeta {
@@ -92,5 +93,12 @@ export const SOURCE_META: Record<PriceRecord['source'], SourceMeta> = {
     color: '#a855f7',
     description: 'ISB historical market price database',
     url: 'https://indiadataportal.com',
+  },
+  vegetablemarketprice: {
+    id: 'vegetablemarketprice',
+    label: 'Veg Market Price',
+    color: '#ec4899',
+    description: 'Live retail & wholesale vegetable prices',
+    url: 'https://vegetablemarketprice.com',
   },
 };
