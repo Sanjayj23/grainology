@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer
+  Tooltip, ResponsiveContainer
 } from 'recharts';
-import type { TrendDataPoint } from '@/lib/types';
+import type { PriceRecord, TrendDataPoint } from '@/lib/types';
 import { SOURCE_META } from '@/lib/types';
 import styles from './TrendChart.module.css';
 
@@ -14,7 +14,13 @@ interface Props {
   loading?: boolean;
 }
 
-const SOURCES = ['agmarknet', 'enam', 'datagovin', 'indiadataportal'] as const;
+const SOURCES: PriceRecord['source'][] = [
+  'vegetablemarketprice',
+  'datagovin',
+  'enam',
+  'agmarknet',
+  'indiadataportal',
+];
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -41,12 +47,9 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 }
 
 export default function TrendChart({ data, loading }: Props) {
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({
-    agmarknet: true,
-    enam: true,
-    datagovin: true,
-    indiadataportal: true,
-  });
+  const [enabled, setEnabled] = useState<Record<string, boolean>>(
+    Object.fromEntries(SOURCES.map(source => [source, true]))
+  );
 
   function formatDate(d: string) {
     try {

@@ -41,11 +41,12 @@ from normalize import normalize_commodity, normalize_market
 logger = logging.getLogger(__name__)
 
 API_BASE = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
-PAGE_LIMIT = 500          # smaller pages -> lower per-request timeout risk
+PAGE_LIMIT = 100          # smaller pages -> lower per-request timeout risk
 REQUEST_TIMEOUT = 30      # seconds -- trimmed so we fit in the 30-min GH Action timeout
 MAX_ATTEMPTS = 2          # 2 attempts per page; more retries = more timeout risk
 BACKOFF_BASE = 2          # seconds; attempt N waits BACKOFF_BASE * 2**(N-1)
 MAX_DAYS_BACK = 2         # scan back only 2 days; keeps total budget well under 10 min
+MAX_UNFILTERED_PAGES = 20 # hard cap when date-filtered API calls are timing out
 
 
 def _get_api_key() -> str:
@@ -79,6 +80,7 @@ def _fetch_page(
     offset: int,
     state: Optional[str],
     commodity: Optional[str],
+    use_date_filter: bool,
 ) -> Optional[dict]:
     """Fetch a single page, retrying on timeout/error with growing backoff.
     Returns the parsed JSON dict, or None if every attempt failed."""
@@ -87,8 +89,9 @@ def _fetch_page(
         "format": "json",
         "limit": PAGE_LIMIT,
         "offset": offset,
-        "filters[Arrival_Date]": date_str,
     }
+    if use_date_filter:
+        params["filters[Arrival_Date]"] = date_str
     if state:
         params["filters[State]"] = state
     if commodity:
@@ -171,13 +174,14 @@ def _fetch_for_date(
     state: Optional[str],
     commodity: Optional[str],
     fetched_at: datetime,
+    use_date_filter: bool = True,
 ) -> list[PriceRecord]:
     date_str = target_date.strftime("%d/%m/%Y")
     all_records: list[PriceRecord] = []
     offset = 0
 
     while True:
-        data = _fetch_page(session, api_key, date_str, offset, state, commodity)
+        data = _fetch_page(session, api_key, date_str, offset, state, commodity, use_date_filter)
         if data is None:
             break  # exhausted retries for this page -- stop paginating this date
 
@@ -188,10 +192,20 @@ def _fetch_for_date(
             date_str, offset, len(records_data), total,
         )
 
-        all_records.extend(_parse_records(records_data, fetched_at, target_date))
+        parsed = _parse_records(records_data, fetched_at, target_date)
+        if use_date_filter:
+            all_records.extend(parsed)
+        else:
+            all_records.extend(r for r in parsed if r.price_date == target_date)
 
         offset += len(records_data)
         if offset >= total or not records_data:
+            break
+        if not use_date_filter and (offset // PAGE_LIMIT) >= MAX_UNFILTERED_PAGES:
+            logger.warning(
+                "data.gov.in: stopping unfiltered fallback after %d pages for %s",
+                MAX_UNFILTERED_PAGES, date_str,
+            )
             break
         time.sleep(0.5)  # polite delay between pages
 
@@ -228,6 +242,15 @@ def fetch_datagovin(
         try_date = target_date - timedelta(days=days_back)
         logger.info("data.gov.in: fetching for %s (days_back=%d)", try_date, days_back)
         records = _fetch_for_date(session, api_key, try_date, state, commodity, fetched_at)
+        if not records:
+            logger.warning(
+                "data.gov.in: date-filtered fetch returned 0 records for %s; "
+                "trying capped unfiltered fallback",
+                try_date,
+            )
+            records = _fetch_for_date(
+                session, api_key, try_date, state, commodity, fetched_at, use_date_filter=False
+            )
 
         if records:
             if days_back > 0:

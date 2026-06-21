@@ -1,6 +1,6 @@
-# 🌾 Grainology — Live Agricultural Price Intelligence
+# Grainology - Live Agricultural Price Intelligence
 
-Compare live mandi prices across **4 government data sources** — Agmarknet, eNAM, data.gov.in, and IndiaDataPortal — with filters by state, district, market, commodity, and variety.
+Compare agricultural commodity prices across live and near-live sources, including data.gov.in/Agmarknet, eNAM, Agmarknet direct scrape, Vegetable Market Price, and optional IndiaDataPortal history.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
 
@@ -8,55 +8,53 @@ Compare live mandi prices across **4 government data sources** — Agmarknet, eN
 
 ## Architecture
 
-```
-GitHub Actions (every 2 hrs)
-  └── Python scrapers → data/latest/*.json + data/history/**/*.csv
-        └── jsDelivr CDN → Next.js frontend (Vercel)
+```text
+GitHub Actions (3 scheduled runs/day)
+  -> Python scrapers -> data/latest/*.json + data/history/**/*.csv
+       -> raw GitHub first, jsDelivr fallback -> Next.js frontend (Vercel)
 ```
 
-**No database.** The GitHub repo is the data store. Vercel reads data from jsDelivr CDN URLs that point directly at the committed JSON files. New scrape runs show up on the live site within ~5 minutes of the GitHub Actions commit — no Vercel rebuild needed.
+No database is required. The GitHub repo is the data store. Vercel reads committed JSON files directly from raw GitHub first, then falls back to jsDelivr CDN. New scrape runs show up on the live site after the GitHub Actions commit; no Vercel rebuild is needed.
 
 ---
 
 ## Data Sources
 
-| Source | Type | Freshness | Coverage |
-|--------|------|-----------|----------|
-| **data.gov.in** | REST API | Daily (T-1) | ~2,000 markets, 300 commodities |
-| **Agmarknet** | HTML scrape | Daily (T-1) | Same data, gap-fill |
-| **eNAM** | JSON endpoint | Live (T-0) | 1,000+ mandis, 18+ states |
-| **IndiaDataPortal** | REST API | Historical | Aggregated APMC data |
+| Source | Type | Freshness | Notes |
+|--------|------|-----------|-------|
+| Vegetable Market Price | HTML scrape | Daily | Retail + wholesale vegetable prices, no API key |
+| data.gov.in | Official REST API | Daily / near-live when published | Agmarknet-generated mandi data |
+| eNAM | Public dashboard/API sniff | Live / best-effort | e-trading market prices |
+| Agmarknet direct | Browser scrape | Best-effort | Redundant cross-check for data.gov.in |
+| IndiaDataPortal | Manual/API candidate | Historical / optional | Not part of the default live run |
+
+The portal is designed to keep working when a source is slow or redesigned. Critical data comes from the most stable source available; fragile sources are treated as best-effort and write diagnostics when they fail.
 
 ---
 
 ## Setup
 
-### 1. Get a data.gov.in API Key
-Register at [https://data.gov.in](https://data.gov.in) (free, takes 5 minutes).
+### 1. Get a data.gov.in API key
 
-### 2. Fork & configure
-```bash
-git clone https://github.com/YOUR_USERNAME/grainology.git
-cd grainology
+Register at [https://data.gov.in](https://data.gov.in), then add this GitHub Actions secret:
+
+```text
+DATAGOVIN_API_KEY=your-data-gov-in-key
 ```
 
-Add to GitHub Actions secrets (`Settings → Secrets → Actions`):
-- `DATAGOVIN_API_KEY` — your data.gov.in API key
-- `IDP_API_KEY` — IndiaDataPortal key (optional)
+### 2. Configure repo identity
 
-Update the CDN base URL in `src/lib/dataFetcher.ts`:
-```typescript
-const GITHUB_USER = 'YOUR_GITHUB_USERNAME';
-const GITHUB_REPO = 'grainology';
-```
+The project defaults to:
 
-Or set Vercel environment variables:
-```
-NEXT_PUBLIC_GITHUB_USER=your-github-username
+```text
+NEXT_PUBLIC_GITHUB_USER=Sanjayj23
 NEXT_PUBLIC_GITHUB_REPO=grainology
 ```
 
-### 3. Run scrapers locally (Python)
+Set these in Vercel only if you fork or rename the repo. You can also set `NEXT_PUBLIC_DATA_BASE_URL` later if you move the JSON snapshots to a bucket, Worker, or API.
+
+### 3. Run scrapers locally
+
 ```bash
 cd scrapers
 pip install -r requirements.txt
@@ -64,17 +62,13 @@ DATAGOVIN_API_KEY=your_key python run_all.py
 ```
 
 ### 4. Run the frontend locally
+
 ```bash
 npm install
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000)
 
-### 5. Deploy to Vercel
-```bash
-npx vercel --prod
-```
-Or connect the GitHub repo in the Vercel dashboard — it auto-deploys on every push.
+Open [http://localhost:3000](http://localhost:3000). Local development reads `public/data` first, then falls back to committed GitHub data.
 
 ---
 
@@ -84,59 +78,54 @@ All sources normalize to this unified schema:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `source` | string | `agmarknet` / `enam` / `datagovin` / `indiadataportal` |
+| `source` | string | `vegetablemarketprice` / `datagovin` / `enam` / `agmarknet` / `indiadataportal` |
 | `price_date` | YYYY-MM-DD | Market trading date |
 | `state` | string | Canonical state name |
 | `district` | string | District name |
 | `market` | string | Mandi/market name |
 | `commodity` | string | Canonical commodity name |
-| `variety` | string | Variety (e.g. "Red", "Local") |
-| `min_price` | float | Minimum price (₹/quintal) |
-| `max_price` | float | Maximum price (₹/quintal) |
-| `modal_price` | float | Modal (most common) price (₹/quintal) |
-| `arrivals_tonnes` | float\|null | Quantity arrived |
+| `variety` | string | Variety, when available |
+| `min_price` | float | Minimum price, normalized to rupees per quintal when the source provides that unit |
+| `max_price` | float | Maximum price |
+| `modal_price` | float | Modal or midpoint price |
+| `arrivals_tonnes` | float/null | Quantity arrived, when available |
 
 ---
 
 ## Project Structure
 
-```
+```text
 grainology/
-├── scrapers/
-│   ├── schema.py                  # Pydantic unified schema
-│   ├── normalize.py               # Name normalization + crosswalk
-│   ├── agmarknet_scraper.py       # ASP.NET form POST scraper
-│   ├── datagovin_client.py        # data.gov.in REST API client
-│   ├── enam_scraper.py            # eNAM live price scraper
-│   ├── indiadataportal_client.py  # IndiaDataPortal client
-│   ├── run_all.py                 # Orchestrator
-│   └── requirements.txt
-├── data/
-│   ├── latest/                    # Most recent JSON snapshots (used by frontend)
-│   ├── history/                   # Daily CSVs per source
-│   ├── reference/                 # Name crosswalk files
-│   └── scrape_log.csv             # Run history
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx               # Main dashboard
-│   │   └── globals.css
-│   ├── components/
-│   │   ├── ComparisonTable.tsx    # Source comparison table
-│   │   ├── TrendChart.tsx         # 30-day price trend
-│   │   ├── FilterSidebar.tsx      # Cascading filters
-│   │   └── FreshnessStrip.tsx     # Data health indicators
-│   └── lib/
-│       ├── types.ts               # TypeScript interfaces
-│       └── dataFetcher.ts         # CDN fetch + filter/compare logic
-├── .github/workflows/scrape.yml   # Automated scraping cron
-├── next.config.js
-├── vercel.json
-└── tsconfig.json
+  scrapers/
+    schema.py                     # Pydantic unified schema
+    normalize.py                  # Name normalization + crosswalk
+    vegetablemarketprice_scraper.py
+    datagovin_client.py           # data.gov.in REST API client
+    enam_scraper.py               # eNAM live/best-effort scraper
+    agmarknet_scraper.py          # Agmarknet direct scrape diagnostics
+    indiadataportal_client.py     # Optional historical client
+    run_all.py                    # Orchestrator
+  data/
+    latest/                       # Most recent JSON snapshots
+    history/                      # Daily CSVs per source
+    reference/                    # Name crosswalk files
+    debug/                        # Screenshots/HTML diagnostics from scraper failures
+    scrape_log.csv                # Run history
+  src/
+    app/page.tsx                  # Main dashboard
+    components/                   # Tables, charts, filters, freshness indicators
+    lib/dataFetcher.ts            # GitHub/CDN fetch + compare logic
+  .github/workflows/scrape.yml    # Automated scraping cron
 ```
+
+---
+
+## Source Debugging
+
+If eNAM or Agmarknet returns zero rows after a redesign, the scraper saves screenshots and HTML under `data/debug/`. The GitHub Action uploads those files as artifacts for seven days. Download the latest artifact and inspect the changed form/API calls before changing selectors.
 
 ---
 
 ## License
 
-MIT — data from government sources used under their respective open data policies.
+MIT. Source data remains subject to each source site's terms and published data license.

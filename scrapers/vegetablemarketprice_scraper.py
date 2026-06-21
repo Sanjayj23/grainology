@@ -66,6 +66,7 @@ def _scrape_state(state_slug: str, fetched_at: datetime, price_date: date) -> li
 
                 price_str = cells[2].replace("\u20b9", "").replace(",", "").strip()
                 retail_str = cells[3].replace("\u20b9", "").replace(",", "").strip() if len(cells) > 3 else ""
+                unit = cells[4].lower().replace(" ", "") if len(cells) > 4 else "1kg"
 
                 # Handle range like "25 - 40" or just "30"
                 if " - " in price_str:
@@ -76,6 +77,13 @@ def _scrape_state(state_slug: str, fetched_at: datetime, price_date: date) -> li
                     val = float(price_str or 0)
                     min_p = val * 0.9
                     max_p = val * 1.1
+
+                # Source prices are usually per 1kg. The dashboard schema
+                # compares sources in rupees/quintal, so normalize kg to quintal.
+                if "kg" in unit:
+                    min_p *= 100
+                    max_p *= 100
+
                 modal_p = (min_p + max_p) / 2
 
                 if modal_p <= 0:

@@ -16,8 +16,8 @@ const SOURCES = ['datagovin', 'enam', 'agmarknet', 'indiadataportal', 'vegetable
 
 // ── Fetch helpers ────────────────────────────────────────────────
 
-// In dev (localhost), data is served from /public/data/ as static assets.
-// In production, it's fetched from GitHub CDN + raw.github fallback.
+// In dev, try /public/data first, then the committed repo data.
+// In production, prefer raw GitHub freshness and fall back to jsDelivr speed.
 function getDataUrls(path: string): string[] {
   const cacheBust = `v=${Date.now()}`;
   const isLocalhost =
