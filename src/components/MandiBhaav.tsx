@@ -1,809 +1,495 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { TrendingUp, Download, Printer, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
-import { MandiCache } from '../lib/sessionStorage';
-import { usePopupContext } from '../contexts/PopupContext';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { AlertCircle, Download, Printer, RefreshCw, TrendingUp } from 'lucide-react';
 
-interface AgMarkNetData {
+interface AgmarknetFilterData {
+  state_data?: Array<{ state_id: number; state_name: string }>;
+  district_data?: Array<{ id?: number; district_id?: number; state_id: number; district_name: string }>;
+  market_data?: Array<{ id: number; state_id?: number; district_id?: number; mkt_name: string }>;
+  cmdt_group_data?: Array<{ id: number; cmdt_grp_name: string }>;
+  group_data?: Array<{ group_id: number; group_name: string }>;
+  cmdt_data?: Array<{ cmdt_id: number; cmdt_name: string; cmdt_group_id?: number }>;
+  grade_data?: Array<{ id: number; grade_name: string }>;
+}
+
+interface NormalizedRecord {
   commodity_group: string;
   commodity: string;
-  variety: string;
-  msp: number;
-  dates: Record<string, { price: number; arrival: number }>;
+  msp_price_rs_per_quintal: number | null;
+  reported_date: string;
+  price: {
+    as_on: { title: string; value: number | null };
+    one_day_ago: { title: string; value: number | null };
+    two_day_ago: { title: string; value: number | null };
+  };
+  arrival_metric_tonnes: {
+    as_on: { title: string; value: number | null };
+    one_day_ago: { title: string; value: number | null };
+    two_day_ago: { title: string; value: number | null };
+  };
 }
 
-interface FilterOptions {
-  states: string[];
-  districts: string[];
-  markets: string[];
-  commodities: string[];
-  varieties: string[];
-  commodity_groups: string[];
+interface MarketwiseResponse {
+  status: string;
+  stale: boolean;
+  source: string;
+  cached: boolean;
+  columns: Array<{ key: string; title?: string; columns?: Array<{ key: string; title: string }> }>;
+  records: NormalizedRecord[];
+  reported_dates: string[];
+  fetched_at?: string;
+  warning?: string;
+  error?: string;
 }
+
+interface FilterResponse {
+  source: string;
+  stale: boolean;
+  live_available: boolean;
+  cached_state_ids: number[];
+  data: AgmarknetFilterData | { data?: AgmarknetFilterData };
+  error?: string;
+}
+
+interface DashboardFilters {
+  state: number;
+  district: number[];
+  market: number[];
+  group: number[];
+  commodity: number[];
+  variety: number;
+  grades: number[];
+}
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const DEFAULT_FILTERS: DashboardFilters = {
+  state: 100006,
+  district: [],
+  market: [100009],
+  group: [],
+  commodity: [1, 2, 4],
+  variety: 100021,
+  grades: [],
+};
+
+const indiaDate = (offsetDays = 0) => {
+  const date = new Date(Date.now() - offsetDays * 86400000);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+const formatNumber = (value: number | null) =>
+  value === null || value === undefined
+    ? '-'
+    : value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function MandiBhaav() {
-  const { showAlert } = usePopupContext();
-  const [data, setData] = useState<AgMarkNetData[]>([]);
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-    states: [],
-    districts: [],
-    markets: [],
-    commodities: [],
-    varieties: [],
-    commodity_groups: []
+  const [draftFilters, setDraftFilters] = useState<DashboardFilters>(DEFAULT_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<DashboardFilters>(DEFAULT_FILTERS);
+  const [draftDate, setDraftDate] = useState(indiaDate());
+  const [appliedDate, setAppliedDate] = useState(indiaDate());
+  const [filterData, setFilterData] = useState<AgmarknetFilterData | null>(null);
+  const [liveAvailable, setLiveAvailable] = useState(true);
+  const [cachedStateIds, setCachedStateIds] = useState<number[]>([100006]);
+  const [tableData, setTableData] = useState<MarketwiseResponse>({
+    status: 'idle',
+    stale: false,
+    source: '',
+    cached: false,
+    columns: [],
+    records: [],
+    reported_dates: [],
   });
-  const [dates, setDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    state: 'Bihar', // Default: Bihar (CEDA + fallback API)
-    district: 'all',
-    market: 'all',
-    commodity_group: 'Cereals', // Default: Paddy, Maize, Wheat
-    commodity: 'all',
-    variety: 'all',
-    grade: 'FAQ'
-  });
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [filtersLoading, setFiltersLoading] = useState(true);
+  const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const itemsPerCommodity = 3; // 3 Paddy + 3 Maize + 3 Wheat = 9 rows per page
-  const componentRef = useRef<HTMLDivElement>(null);
+  const recordsPerPage = 20;
 
-  useEffect(() => {
-    // Load filter options on mount (don't wait for visibility)
-    loadFilterOptions();
-  }, []);
-
-  useEffect(() => {
-    // Load data when filter options are loaded or after a delay
-    // Don't wait for visibility check - load immediately for panel views
-    if (filterOptions.states.length > 0) {
-      // On initial load, fetch default commodities (Paddy, Maize, Wheat)
-      if (isInitialLoad) {
-        loadDefaultData();
-        setIsInitialLoad(false);
-      } else {
-        loadData();
-      }
-    } else if (filterOptions.states.length === 0 && !loading && isInitialLoad) {
-      // If filters haven't loaded yet, try loading default data anyway after a short delay
-      const timer = setTimeout(() => {
-        if (isInitialLoad) {
-          console.log('Loading default data without filters...');
-          loadDefaultData();
-          setIsInitialLoad(false);
-        }
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, filterOptions.states.length]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
-
-  const loadFilterOptions = async () => {
+  const loadFilters = async () => {
+    setFiltersLoading(true);
     try {
-      // Check cache first
-      const cached = MandiCache.getFilters() as FilterOptions | null;
-      if (cached && cached.states && cached.states.length > 0) {
-        setFilterOptions(cached);
-        return;
-      }
-
-      // Fetch from API
-      const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/mandi/filters`;
-      console.log('Fetching filter options from:', apiUrl);
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch filters' }));
-        console.error('Failed to load filter options:', errorData);
-        // Set default filters to allow data loading even if filters fail
-        setFilterOptions({
-          states: ['Bihar', 'Uttar Pradesh', 'Punjab', 'Haryana', 'Madhya Pradesh', 'Rajasthan'], // Default states with Bihar first
-          districts: ['Patna', 'Muzaffarpur', 'Gaya', 'Bhagalpur', 'Purnia', 'Darbhanga', 'Saran', 'Siwan', 'Vaishali', 'Samastipur'], // Bihar districts
-          markets: [],
-          commodities: ['Paddy', 'Maize', 'Wheat'],
-          varieties: [],
-          commodity_groups: ['Cereals']
-        });
-        // Don't set error - allow data to load with default filters
-        return;
-      }
-
-      const options = await response.json();
-      if (options && typeof options === 'object' && options.states && Array.isArray(options.states)) {
-        setFilterOptions(options);
-        // Cache the filters
-        MandiCache.setFilters(options);
-        setApiError(null); // Clear any previous errors
-      } else {
-        console.warn('Invalid filter options response:', options);
-        // Set default filters
-        setFilterOptions({
-          states: ['Bihar', 'Uttar Pradesh', 'Punjab', 'Haryana', 'Madhya Pradesh', 'Rajasthan'],
-          districts: ['Patna', 'Muzaffarpur', 'Gaya', 'Bhagalpur', 'Purnia', 'Darbhanga', 'Saran', 'Siwan', 'Vaishali', 'Samastipur'], // Bihar districts
-          markets: [],
-          commodities: ['Paddy', 'Maize', 'Wheat'],
-          varieties: [],
-          commodity_groups: ['Cereals']
-        });
-      }
-    } catch (error: any) {
-      console.error('Error loading filter options:', error);
-      // Set default filters to allow data loading
-      setFilterOptions({
-        states: ['Bihar', 'Uttar Pradesh', 'Punjab', 'Haryana', 'Madhya Pradesh', 'Rajasthan'],
-        districts: ['Patna', 'Muzaffarpur', 'Gaya', 'Bhagalpur', 'Purnia', 'Darbhanga', 'Saran', 'Siwan', 'Vaishali', 'Samastipur'], // Bihar districts
-        markets: [],
-        commodities: ['Paddy', 'Maize', 'Wheat'],
-        varieties: [],
-        commodity_groups: ['Cereals']
-      });
-      // Don't set error - allow data to load with default filters
+      const response = await fetch(`${API_URL}/agmarknet/filters`);
+      const result = await response.json() as FilterResponse;
+      if (!response.ok) throw new Error(result.error || 'Unable to load Agmarknet filters');
+      setFilterData(result.data?.data || result.data || {});
+      setLiveAvailable(result.live_available !== false);
+      setCachedStateIds(result.cached_state_ids?.length ? result.cached_state_ids : [100006]);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load Agmarknet filters');
+    } finally {
+      setFiltersLoading(false);
     }
   };
 
-  const loadDefaultData = async () => {
+  const loadMarketData = async (filters: DashboardFilters, date: string, force = false) => {
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      setApiError(null);
-      
-      // Check cache first
-      const cached = MandiCache.getDefault() as { data: AgMarkNetData[]; dates: string[] } | null;
-      if (cached && cached.data && Array.isArray(cached.data) && cached.data.length > 0) {
-        setData(cached.data);
-        setDates(cached.dates || []);
-        setLoading(false);
-        return;
+      const response = await fetch(`${API_URL}/agmarknet/marketwise-price-arrival`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dashboard: 'marketwise_price_arrival',
+          date,
+          ...filters,
+          limit: 150,
+          force,
+          format: 'json',
+        }),
+      });
+      const result = await response.json() as MarketwiseResponse;
+      if (!response.ok || result.status !== 'success') {
+        throw new Error(result.error || 'Unable to load Agmarknet data');
       }
-
-      // Fetch data for Paddy, Maize, Wheat by default (all states)
-      const params = new URLSearchParams();
-      params.append('commodity_group', 'Cereals');
-      // No state filter - show overall data
-      // Filter to show only Paddy, Maize, Wheat
-      // Default: Bihar, Paddy, Maize, Wheat (API tries CEDA first, then fallback)
-      params.append('state', 'Bihar');
-      const defaultCommodities = ['Paddy', 'Maize', 'Wheat'];
-      
-      // Fetch data for each commodity and combine
-      const allData: AgMarkNetData[] = [];
-      const allDatesSet = new Set<string>();
-
-      for (const commodity of defaultCommodities) {
-        const commodityParams = new URLSearchParams(params);
-        commodityParams.append('commodity', commodity);
-        commodityParams.append('limit', '200'); // Smaller limit for each commodity
-        
-        try {
-          const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/mandi/agmarknet?${commodityParams.toString()}`;
-          console.log(`Fetching ${commodity} data from:`, apiUrl);
-          const response = await fetch(apiUrl, {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            signal: AbortSignal.timeout(20000), // 20 second timeout per commodity
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Failed to fetch data' }));
-            console.error(`Failed to fetch ${commodity} data (${response.status}):`, errorData);
-            // Don't set error for individual commodities, just log it and continue
-            continue; // Skip this commodity and continue with others
-          }
-
-          const result = await response.json();
-          console.log(`${commodity} API response:`, result);
-          
-          if (result && result.success !== false && result.data && Array.isArray(result.data) && result.data.length > 0) {
-            // Take all data (we'll paginate it)
-            allData.push(...result.data);
-            if (result.dates && Array.isArray(result.dates)) {
-              result.dates.forEach((d: string) => allDatesSet.add(d));
-            }
-          } else {
-            console.warn(`${commodity} returned no data:`, result);
-          }
-        } catch (error: any) {
-          console.error(`Error fetching ${commodity} data:`, error);
-          // Continue with other commodities even if one fails
-        }
-      }
-
-      // Sort dates and take last 3
-      const sortedDates = Array.from(allDatesSet).sort().reverse().slice(0, 3);
-      
-      if (allData.length > 0) {
-        setData(allData);
-        setDates(sortedDates.length > 0 ? sortedDates : [new Date().toISOString().split('T')[0]]);
-        // Cache the data
-        MandiCache.setDefault({ data: allData, dates: sortedDates.length > 0 ? sortedDates : [new Date().toISOString().split('T')[0]] });
-        setApiError(null); // Clear any previous errors
-        console.log(`✅ Successfully loaded ${allData.length} mandi records`);
-      } else {
-        setApiError('No data available for the selected commodities. Please try adjusting filters or check your connection.');
-        setData([]);
-        setDates([]);
-      }
-    } catch (error: any) {
-      console.error('Error loading default data:', error);
-      setApiError(error.message || 'Failed to load mandi data. Please check your connection and try again.');
-      setData([]);
-      setDates([]);
+      setTableData(result);
+      setCurrentPage(1);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load Agmarknet data');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setApiError(null);
-      
-      // Check cache first
-      const cached = MandiCache.get(filters) as { data: AgMarkNetData[]; dates: string[] } | null;
-      if (cached && cached.data && Array.isArray(cached.data) && cached.data.length > 0) {
-        setData(cached.data);
-        setDates(cached.dates || []);
-        setLoading(false);
-        return;
-      }
+  useEffect(() => {
+    void loadFilters();
+    void loadMarketData(DEFAULT_FILTERS, indiaDate());
+  }, []);
 
-      // Fetch from API
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== 'all') {
-          params.append(key, value);
-        }
-      });
+  const states = filterData?.state_data || [];
+  const stateIsAvailable = liveAvailable || cachedStateIds.includes(draftFilters.state);
+  const districts = (filterData?.district_data || []).filter((district) =>
+    draftFilters.state !== 100006 && district.state_id === draftFilters.state);
+  const markets = (filterData?.market_data || []).filter((market) =>
+    market.id === 100009
+    || ((!market.state_id || draftFilters.state === 100006 || market.state_id === draftFilters.state)
+      && (!market.district_id || !draftFilters.district.length || market.district_id === draftFilters.district[0])));
+  const groups = filterData?.cmdt_group_data || [];
+  const legacyGroups = filterData?.group_data || [];
+  const commodities = (filterData?.cmdt_data || []).filter((commodity) =>
+    commodity.cmdt_id !== 100001
+    && (!draftFilters.group.length || commodity.cmdt_group_id === draftFilters.group[0]));
+  const grades = filterData?.grade_data || [];
 
-      const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/mandi/agmarknet?${params.toString()}`;
-      console.log('Fetching mandi data from:', apiUrl);
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  const priceTitles = tableData.columns.find((column) => column.key === 'price_group')?.columns?.map((column) => column.title)
+    || [
+      tableData.records[0]?.price.as_on.title || 'As on',
+      tableData.records[0]?.price.one_day_ago.title || '1 day ago',
+      tableData.records[0]?.price.two_day_ago.title || '2 days ago',
+    ];
+  const arrivalTitles = tableData.columns.find((column) => column.key === 'arrival_group')?.columns?.map((column) => column.title)
+    || [
+      tableData.records[0]?.arrival_metric_tonnes.as_on.title || 'As on',
+      tableData.records[0]?.arrival_metric_tonnes.one_day_ago.title || '1 day ago',
+      tableData.records[0]?.arrival_metric_tonnes.two_day_ago.title || '2 days ago',
+    ];
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch data' }));
-        console.error('Failed to fetch mandi data:', errorData);
-        setApiError(errorData.error || errorData.message || `Failed to fetch mandi data (${response.status}). Please try again.`);
-        setData([]);
-        setDates([]);
-        setLoading(false);
-        return;
-      }
+  const totalPages = Math.max(1, Math.ceil(tableData.records.length / recordsPerPage));
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * recordsPerPage;
+    return tableData.records.slice(start, start + recordsPerPage);
+  }, [currentPage, tableData.records]);
 
-      const result = await response.json();
-      console.log('Mandi API response:', result);
-      
-      if (result && result.success !== false) {
-        const resultData = Array.isArray(result.data) ? result.data : [];
-        const resultDates = Array.isArray(result.dates) ? result.dates : [];
-        
-        if (resultData.length > 0) {
-          setData(resultData);
-          setDates(resultDates);
-          // Cache the data
-          MandiCache.set(filters, { data: resultData, dates: resultDates });
-          setApiError(null); // Clear any previous errors
-        } else {
-          setApiError('No data found for the selected filters. Please try different filters.');
-          setData([]);
-          setDates([]);
-        }
-      } else {
-        console.error('API returned error:', result);
-        setApiError(result.error || result.message || 'Invalid response from server');
-        setData([]);
-        setDates([]);
-      }
-    } catch (error: any) {
-      console.error('Error loading data:', error);
-      setApiError(error.message || 'Network error. Please check your connection and try again.');
-      setData([]);
-      setDates([]);
-    } finally {
-    setLoading(false);
-    }
+  const stateName = states.find((state) => state.state_id === appliedFilters.state)?.state_name || 'All States';
+  const latestDate = tableData.reported_dates[0] || priceTitles[0] || 'Unknown';
+
+  const applyFilters = () => {
+    if (!stateIsAvailable) return;
+    setAppliedFilters(draftFilters);
+    setAppliedDate(draftDate);
+    void loadMarketData(draftFilters, draftDate);
   };
 
   const resetFilters = () => {
-    setFilters({
-      state: 'all', // Reset to show overall data
-      district: 'all',
-      market: 'all',
-      commodity_group: 'Cereals', // Reset to default
-      commodity: 'all',
-      variety: 'all',
-      grade: 'FAQ'
-    });
-    setIsInitialLoad(true); // Reload default data
-    setCurrentPage(1); // Reset to first page
+    const date = indiaDate();
+    setDraftFilters(DEFAULT_FILTERS);
+    setAppliedFilters(DEFAULT_FILTERS);
+    setDraftDate(date);
+    setAppliedDate(date);
+    void loadMarketData(DEFAULT_FILTERS, date);
   };
 
-  // Organize data for pagination: 3 Paddy, 3 Maize, 3 Wheat per page (default)
-  // If a specific commodity is filtered, show 9 rows of that commodity per page
-  const paginatedData = useMemo(() => {
-    // Check if a specific commodity is filtered
-    const isSpecificCommodityFiltered = filters.commodity !== 'all';
-    
-    if (isSpecificCommodityFiltered) {
-      // If specific commodity filtered, show 9 rows of that commodity per page
-      const startIndex = (currentPage - 1) * 9;
-      return data.slice(startIndex, startIndex + 9);
+  const downloadCsv = () => {
+    if (!tableData.records.length) return;
+    const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      [
+        'Commodity Group', 'Commodity', 'MSP (Rs./Quintal)',
+        ...priceTitles.map((title) => `Price ${title}`),
+        ...arrivalTitles.map((title) => `Arrival ${title}`),
+      ].map(escape).join(','),
+      ...tableData.records.map((record) => [
+        record.commodity_group,
+        record.commodity,
+        record.msp_price_rs_per_quintal,
+        record.price.as_on.value,
+        record.price.one_day_ago.value,
+        record.price.two_day_ago.value,
+        record.arrival_metric_tonnes.as_on.value,
+        record.arrival_metric_tonnes.one_day_ago.value,
+        record.arrival_metric_tonnes.two_day_ago.value,
+      ].map(escape).join(',')),
+    ];
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' }));
+    link.download = `agmarknet_data_${appliedDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const pageNumbers = Array.from({ length: Math.min(5, totalPages) }, (_, index) => {
+    if (totalPages <= 5 || currentPage <= 3) return index + 1;
+    if (currentPage >= totalPages - 2) return totalPages - 4 + index;
+    return currentPage - 2 + index;
+  });
+
+  useEffect(() => {
+    if (!filtersLoading && !liveAvailable && !cachedStateIds.includes(draftFilters.state)) {
+      setDraftFilters(DEFAULT_FILTERS);
     }
-
-    // Default: Group data by commodity (Paddy, Maize, Wheat)
-    // Filter by exact commodity name match (case-insensitive)
-    const paddyData = data.filter(item => {
-      const comm = item.commodity.toLowerCase();
-      return comm === 'paddy' || comm.includes('paddy') || comm.includes('rice') || comm === 'common paddy';
-    }).slice(0, 50); // Limit to first 50 to ensure variety
-    
-    const maizeData = data.filter(item => {
-      const comm = item.commodity.toLowerCase();
-      return comm === 'maize' || comm.includes('maize') || comm.includes('corn');
-    }).slice(0, 50); // Limit to first 50 to ensure variety
-    
-    const wheatData = data.filter(item => {
-      const comm = item.commodity.toLowerCase();
-      return comm === 'wheat' || comm.includes('wheat');
-    }).slice(0, 50); // Limit to first 50 to ensure variety
-
-    // Calculate items per commodity per page (3 each)
-    const startIndex = (currentPage - 1) * itemsPerCommodity;
-
-    // Get 3 items from each commodity for current page
-    const paddyPage = paddyData.slice(startIndex, startIndex + itemsPerCommodity);
-    const maizePage = maizeData.slice(startIndex, startIndex + itemsPerCommodity);
-    const wheatPage = wheatData.slice(startIndex, startIndex + itemsPerCommodity);
-
-    // Combine: Paddy first, then Maize, then Wheat (3 each = 9 total)
-    return [...paddyPage, ...maizePage, ...wheatPage];
-  }, [data, currentPage, filters.commodity, itemsPerCommodity]);
-
-  // Calculate total pages
-  const totalPages = useMemo(() => {
-    // Check if a specific commodity is filtered
-    const isSpecificCommodityFiltered = filters.commodity !== 'all';
-    
-    if (isSpecificCommodityFiltered) {
-      // If specific commodity filtered, calculate pages based on total data
-      return Math.ceil(data.length / 9);
-    }
-
-    // Default: Calculate based on the commodity with most data
-    const paddyData = data.filter(item => 
-      item.commodity.toLowerCase().includes('paddy') || 
-      item.commodity.toLowerCase().includes('rice')
-    );
-    const maizeData = data.filter(item => 
-      item.commodity.toLowerCase().includes('maize') || 
-      item.commodity.toLowerCase().includes('corn')
-    );
-    const wheatData = data.filter(item => 
-      item.commodity.toLowerCase().includes('wheat')
-    );
-
-    const maxLength = Math.max(paddyData.length, maizeData.length, wheatData.length);
-    return Math.ceil(maxLength / itemsPerCommodity);
-  }, [data, filters.commodity, itemsPerCommodity]);
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    try {
-      // Handle different date formats: YYYY-MM-DD, ISO strings, etc.
-      let date: Date;
-      if (dateStr.includes('T')) {
-        date = new Date(dateStr);
-      } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        // YYYY-MM-DD format
-        date = new Date(dateStr + 'T00:00:00');
-      } else {
-        date = new Date(dateStr);
-      }
-      
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return dateStr;
-      }
-      
-      const day = date.getDate();
-      const month = date.toLocaleString('en-US', { month: 'short' });
-      const year = date.getFullYear();
-      return `${day} ${month}, ${year}`;
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const formatPrice = (price: number) => {
-    if (!price || price === 0) return '-';
-    return price.toFixed(2);
-  };
-
-  const formatArrival = (arrival: number) => {
-    if (!arrival || arrival === 0) return '-';
-    return arrival.toFixed(2);
-  };
-
-  // Get filtered districts based on selected state
-  const getFilteredDistricts = () => {
-    if (filters.state === 'all') return filterOptions.districts;
-    // In a real implementation, you'd filter districts by state from the API
-    return filterOptions.districts;
-  };
-
-  // Get filtered markets based on selected district
-  const getFilteredMarkets = () => {
-    if (filters.district === 'all') return filterOptions.markets;
-    // In a real implementation, you'd filter markets by district from the API
-    return filterOptions.markets;
-  };
-
-  // Get filtered commodities based on selected commodity group
-  const getFilteredCommodities = () => {
-    if (filters.commodity_group === 'all') return filterOptions.commodities;
-    
-    // Map commodity groups to commodities
-    const groupCommodities: Record<string, string[]> = {
-      'Cereals': ['Paddy', 'Maize', 'Wheat', 'Bajra', 'Pearl Millet', 'Barley', 'Jowar', 'Sorghum', 'Ragi', 'Finger Millet'],
-      'Fibre Crops': ['Cotton'],
-      'Oil Seeds': ['Groundnut', 'Soybean', 'Sunflower', 'Copra'],
-      'Vegetables': ['Tomato', 'Onion', 'Potato'],
-      'Others': []
-    };
-    
-    const groupCommodityList = groupCommodities[filters.commodity_group] || [];
-    if (groupCommodityList.length > 0) {
-      return filterOptions.commodities.filter(c => 
-        groupCommodityList.some(gc => c.includes(gc) || gc.includes(c))
-      );
-    }
-    
-    return filterOptions.commodities;
-  };
+  }, [cachedStateIds, draftFilters.state, filtersLoading, liveAvailable]);
 
   return (
-    <div ref={componentRef} className="space-y-6">
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Market Wise Price & Arrival</h1>
-            <p className="text-gray-600">MSP (Minimum Support Price) Commodities - Tomato, Onion, Potato</p>
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => window.print()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Printer className="w-4 h-4" />
-              Print
-            </button>
-            <button 
-              onClick={() => {
-                try {
-                  // Create CSV content with all data (not just paginated)
-                  const headers = ['Commodity Group', 'Commodity', 'Variety', 'MSP (Rs./Quintal)', ...dates.map(d => `Price ${formatDate(d)}`), ...dates.map(d => `Arrival ${formatDate(d)}`)];
-                  const rows = data.map(item => [
-                    item.commodity_group || '',
-                    item.commodity || '',
-                    item.variety || '',
-                    item.msp > 0 ? item.msp.toFixed(2) : '-',
-                    ...dates.map(date => {
-                      const price = item.dates?.[date]?.price || 0;
-                      return price > 0 ? price.toFixed(2) : '-';
-                    }),
-                    ...dates.map(date => {
-                      const arrival = item.dates?.[date]?.arrival || 0;
-                      return arrival > 0 ? arrival.toFixed(2) : '-';
-                    })
-                  ]);
-                  
-                  const csvContent = [
-                    headers.join(','),
-                    ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-                  ].join('\n');
-                  
-                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                  const link = document.createElement('a');
-                  const url = URL.createObjectURL(blob);
-                  link.setAttribute('href', url);
-                  link.setAttribute('download', `mandi_bhav_${new Date().toISOString().split('T')[0]}.csv`);
-                  link.style.visibility = 'hidden';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  URL.revokeObjectURL(url);
-                } catch (error) {
-                  console.error('Error downloading CSV:', error);
-                  void showAlert({
-                    title: 'Download Failed',
-                    message: 'Failed to download CSV. Please try again.',
-                    tone: 'danger',
-                  });
-                }
-              }}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Download
-            </button>
-          </div>
+    <section data-testid="agmarknet-dashboard" className="rounded-xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-900/5 md:p-7">
+      <header className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
+        <div>
+          <h1 className="text-3xl font-semibold text-slate-800">Market Wise Price & Arrival</h1>
+          <p className="mt-1 text-sm font-medium text-blue-600">(MSP Commodities & Tomato, Onion, Potato)</p>
         </div>
-
-        {/* Filters */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
-          <select
-            value={filters.state}
-            onChange={(e) => setFilters({ ...filters, state: e.target.value, district: 'all', market: 'all' })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All States</option>
-            {filterOptions.states.map(state => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.district}
-            onChange={(e) => setFilters({ ...filters, district: e.target.value, market: 'all' })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Districts</option>
-            {getFilteredDistricts().map(district => (
-              <option key={district} value={district}>{district}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.market}
-            onChange={(e) => setFilters({ ...filters, market: e.target.value })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Markets</option>
-            {getFilteredMarkets().map(market => (
-              <option key={market} value={market}>{market}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.commodity_group}
-            onChange={(e) => setFilters({ ...filters, commodity_group: e.target.value, commodity: 'all' })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Commodity Groups</option>
-            {filterOptions.commodity_groups.map(group => (
-              <option key={group} value={group}>{group}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.commodity}
-            onChange={(e) => setFilters({ ...filters, commodity: e.target.value, variety: 'all' })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Commodities</option>
-            {getFilteredCommodities().map(commodity => (
-              <option key={commodity} value={commodity}>{commodity}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.variety}
-            onChange={(e) => setFilters({ ...filters, variety: e.target.value })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Varieties</option>
-            {filterOptions.varieties.map(variety => (
-              <option key={variety} value={variety}>{variety}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.grade}
-            onChange={(e) => setFilters({ ...filters, grade: e.target.value })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="FAQ">FAQ</option>
-            <option value="Grade A">Grade A</option>
-            <option value="Grade B">Grade B</option>
-          </select>
-        </div>
-
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={loadData}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Go
+        <div className="flex gap-2">
+          <button type="button" onClick={() => window.print()}
+            className="inline-flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+            <Printer className="h-4 w-4" /> Print
           </button>
-          <button
-            onClick={resetFilters}
-            className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-          >
-            Reset
+          <button type="button" onClick={downloadCsv} disabled={!tableData.records.length}
+            className="inline-flex items-center gap-2 rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+            <Download className="h-4 w-4" /> Download
           </button>
         </div>
+      </header>
 
-        {/* Error Message */}
-        {apiError && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">Error Loading Data</p>
-              <p className="text-sm text-red-600 mt-1">{apiError}</p>
-              <button
-                onClick={() => {
-                  setApiError(null);
-                  if (isInitialLoad) {
-                    loadDefaultData();
-                  } else {
-                    loadData();
-                  }
-                }}
-                className="mt-2 text-sm text-red-700 hover:text-red-900 underline"
-              >
-                Try Again
-              </button>
+      {filtersLoading ? (
+        <div className="rounded border border-slate-200 bg-slate-50 px-4 py-10 text-center text-slate-500">
+          Loading Agmarknet filters...
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 rounded border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+            <LabeledSelect testId="agmarknet-date" label="Date" value={draftDate} onChange={setDraftDate}>
+              <option value={indiaDate()}>Today</option>
+              <option value={indiaDate(1)}>Yesterday</option>
+              <option value={indiaDate(2)}>2 Days Ago</option>
+            </LabeledSelect>
+            <LabeledSelect testId="agmarknet-state" label="State" value={draftFilters.state}
+              onChange={(value) => setDraftFilters({ ...draftFilters, state: Number(value), district: [], market: [100009] })}>
+              {states.map((state) => {
+                const available = liveAvailable || cachedStateIds.includes(state.state_id);
+                return (
+                  <option key={state.state_id} value={state.state_id} disabled={!available}>
+                    {state.state_name}{available ? '' : ' (available after next live sync)'}
+                  </option>
+                );
+              })}
+            </LabeledSelect>
+            <LabeledSelect testId="agmarknet-district" label="District" value={draftFilters.district[0] || ''} disabled={draftFilters.state === 100006}
+              onChange={(value) => setDraftFilters({ ...draftFilters, district: value ? [Number(value)] : [], market: [100009] })}>
+              <option value="">All Districts</option>
+              {districts.filter((district) => (district.id ?? district.district_id) !== 100007).map((district) => (
+                <option key={district.id ?? district.district_id} value={district.id ?? district.district_id}>{district.district_name}</option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect testId="agmarknet-market" label="Market" value={draftFilters.market[0] || 100009}
+              onChange={(value) => setDraftFilters({ ...draftFilters, market: [Number(value)] })}>
+              {markets.map((market) => <option key={market.id} value={market.id}>{market.mkt_name}</option>)}
+            </LabeledSelect>
+            <LabeledSelect testId="agmarknet-group" label="Commodity Group" value={draftFilters.group[0] || ''}
+              onChange={(value) => setDraftFilters({ ...draftFilters, group: value ? [Number(value)] : [] })}>
+              <option value="">All Commodity Groups</option>
+              {groups.filter((group) => group.id !== 100000).map((group) => (
+                <option key={group.id} value={group.id}>{group.cmdt_grp_name}</option>
+              ))}
+              {!groups.length && legacyGroups.map((group) => (
+                <option key={group.group_id} value={group.group_id}>{group.group_name}</option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect testId="agmarknet-commodity" label="Commodity" value={draftFilters.commodity.join(',')}
+              onChange={(value) => setDraftFilters({ ...draftFilters, commodity: value.split(',').map(Number) })}>
+              <option value="1,2,4">Paddy, Maize & Wheat</option>
+              <option value="100001">All Commodities</option>
+              {commodities.map((commodity) => (
+                <option key={commodity.cmdt_id} value={commodity.cmdt_id}>{commodity.cmdt_name}</option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect testId="agmarknet-variety" label="Variety" value={draftFilters.variety} disabled onChange={() => undefined}>
+              <option value={100021}>All Varieties</option>
+            </LabeledSelect>
+            <LabeledSelect testId="agmarknet-grade" label="Grade" value={draftFilters.grades[0] || ''} onChange={(value) =>
+              setDraftFilters({ ...draftFilters, grades: value ? [Number(value)] : [] })}>
+              <option value="">All Grades</option>
+              {grades.map((grade) => <option key={grade.id} value={grade.id}>{grade.grade_name}</option>)}
+            </LabeledSelect>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <button type="button" onClick={applyFilters} disabled={!stateIsAvailable}
+              className="rounded bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+              Go
+            </button>
+            <button type="button" onClick={resetFilters}
+              className="rounded bg-slate-500 px-6 py-2 text-sm font-semibold text-white hover:bg-slate-600">
+              Reset
+            </button>
+            <button type="button" onClick={() => void loadMarketData(appliedFilters, appliedDate, true)}
+              className="ml-auto inline-flex items-center gap-2 rounded border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
+
+          {!liveAvailable && (
+            <div className="mt-4 rounded border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+              Agmarknet live refresh is temporarily unavailable. States with a saved direct Agmarknet result remain selectable;
+              other states will unlock automatically after the next successful 6:30 AM IST sync.
             </div>
-          </div>
-        )}
+          )}
+        </>
+      )}
 
-        {/* Info Bar */}
-        {!apiError && data.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold">{filters.state !== 'all' ? filters.state : 'All States'}</span>
-              {filters.district !== 'all' && ` | ${filters.district} District`}
-              {' '}| Data Freeze Up to {dates[0] ? formatDate(dates[0]) : new Date().toLocaleDateString()} | 
-              {' '}Showing {data.length} records
-            </p>
+      {error && (
+        <div className="mt-5 flex gap-3 rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">Live refresh is temporarily unavailable</p>
+            <p className="mt-1">{error}</p>
+            {tableData.records.length > 0 && <p className="mt-1">The last successful Agmarknet result remains visible below.</p>}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Table */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading market data...</p>
-          </div>
-        ) : data.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p>No market data available</p>
-            <p className="text-sm mt-2">Try adjusting your filters</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th rowSpan={2} className="border border-gray-300 px-4 py-2 text-left font-semibold">Commodity Group</th>
-                  <th rowSpan={2} className="border border-gray-300 px-4 py-2 text-left font-semibold">Commodity</th>
-                  <th rowSpan={2} className="border border-gray-300 px-4 py-2 text-left font-semibold">MSP (Rs./Quintal) 2025-26</th>
-                  <th colSpan={dates.length} className="border border-gray-300 px-4 py-2 text-center font-semibold">Price (Rs./Quintal)</th>
-                  <th colSpan={dates.length} className="border border-gray-300 px-4 py-2 text-center font-semibold">Arrival (Metric Tonnes)</th>
-                </tr>
-                <tr className="bg-gray-50">
-                  {dates.map(date => (
-                    <th key={date} className="border border-gray-300 px-4 py-2 text-center text-sm font-medium">
-                      {formatDate(date)}
-                    </th>
-                  ))}
-                  {dates.map(date => (
-                    <th key={`arrival-${date}`} className="border border-gray-300 px-4 py-2 text-center text-sm font-medium">
-                      {formatDate(date)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedData.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-2">{item.commodity_group}</td>
-                    <td className="border border-gray-300 px-4 py-2 font-medium">
-                      {item.commodity}
-                      {item.variety && <span className="text-gray-600 text-sm"> ({item.variety})</span>}
-                    </td>
-                    <td className="border border-gray-300 px-4 py-2 text-right">
-                      {item.msp > 0 ? item.msp.toFixed(2) : '-'}
-                    </td>
-                    {dates.map(date => (
-                      <td key={`price-${date}-${idx}`} className="border border-gray-300 px-4 py-2 text-right">
-                        {formatPrice(item.dates[date]?.price || 0)}
-                      </td>
+      <main className="mt-6">
+        {loading && !tableData.records.length ? (
+          <div className="py-16 text-center font-medium text-emerald-700">Loading Agmarknet data...</div>
+        ) : tableData.records.length ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <span><strong>{stateName}</strong> | Data Freeze Up to {latestDate} | Showing {tableData.records.length} records</span>
+              <span className="font-medium text-emerald-700">
+                {tableData.source === 'agmarknet-live' ? 'Live Agmarknet' : 'Agmarknet cache'}
+                {tableData.stale ? ' (stale)' : ''}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded border border-slate-300">
+              <table className="w-full min-w-[1050px] border-collapse text-sm">
+                <thead className="bg-slate-100 text-slate-800">
+                  <tr>
+                    <th rowSpan={2} className="border-b border-r border-slate-300 px-4 py-3 text-left">Commodity Group</th>
+                    <th rowSpan={2} className="border-b border-r border-slate-300 px-4 py-3 text-left">Commodity</th>
+                    <th rowSpan={2} className="border-b border-r border-slate-300 px-4 py-3 text-center">MSP (Rs./Quintal) 2026-27</th>
+                    <th colSpan={3} className="border-b border-r border-slate-300 px-4 py-3 text-center">Price (Rs./Quintal)</th>
+                    <th colSpan={3} className="border-b border-slate-300 px-4 py-3 text-center">Arrival (Metric Tonnes)</th>
+                  </tr>
+                  <tr>
+                    {priceTitles.map((title, index) => (
+                      <th key={`price-${index}`} className="border-b border-r border-slate-300 px-4 py-2 text-center text-xs">{title}</th>
                     ))}
-                    {dates.map(date => (
-                      <td key={`arrival-${date}-${idx}`} className="border border-gray-300 px-4 py-2 text-right">
-                        {formatArrival(item.dates[date]?.arrival || 0)}
-                      </td>
+                    {arrivalTitles.map((title, index) => (
+                      <th key={`arrival-${index}`} className="border-b border-r border-slate-300 px-4 py-2 text-center text-xs">{title}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedRecords.map((record, index) => (
+                    <tr key={`${record.commodity}-${index}`} className="hover:bg-slate-50">
+                      <td className="border-b border-r border-slate-200 px-4 py-3">{record.commodity_group}</td>
+                      <td className="border-b border-r border-slate-200 px-4 py-3 font-medium">{record.commodity}</td>
+                      <td className="border-b border-r border-slate-200 px-4 py-3 text-right">{formatNumber(record.msp_price_rs_per_quintal)}</td>
+                      <td className="border-b border-r border-slate-200 px-4 py-3 text-right">{formatNumber(record.price.as_on.value)}</td>
+                      <td className="border-b border-r border-slate-200 px-4 py-3 text-right">{formatNumber(record.price.one_day_ago.value)}</td>
+                      <td className="border-b border-r border-slate-200 px-4 py-3 text-right">{formatNumber(record.price.two_day_ago.value)}</td>
+                      <td className="border-b border-r border-slate-200 px-4 py-3 text-right">{formatNumber(record.arrival_metric_tonnes.as_on.value)}</td>
+                      <td className="border-b border-r border-slate-200 px-4 py-3 text-right">{formatNumber(record.arrival_metric_tonnes.one_day_ago.value)}</td>
+                      <td className="border-b border-slate-200 px-4 py-3 text-right">{formatNumber(record.arrival_metric_tonnes.two_day_ago.value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex gap-1">
+                  <PageButton disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>Previous</PageButton>
+                  {pageNumbers.map((page) => (
+                    <PageButton key={page} active={page === currentPage} onClick={() => setCurrentPage(page)}>{page}</PageButton>
+                  ))}
+                  <PageButton disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>Next</PageButton>
+                </div>
+                <p className="text-sm text-slate-500">
+                  Page {currentPage} of {totalPages} (Showing {paginatedRecords.length} of {tableData.records.length} records)
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded border border-slate-200 py-16 text-center text-slate-500">
+            <TrendingUp className="mx-auto mb-3 h-8 w-8 text-slate-300" />
+            No records found for selected criteria.
           </div>
         )}
+      </main>
+    </section>
+  );
+}
 
-        {/* Pagination Controls */}
-        {!loading && data.length > 0 && totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                  currentPage === 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </button>
-              
-              <div className="flex items-center gap-2">
-                {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 10) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 4) {
-                    pageNum = totalPages - 9 + i;
-                  } else {
-                    pageNum = currentPage - 5 + i;
-                  }
-                  
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-2 rounded-lg ${
-                        currentPage === pageNum
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                  </div>
+function LabeledSelect({
+  label,
+  testId,
+  value,
+  disabled,
+  onChange,
+  children,
+}: {
+  label: string;
+  testId: string;
+  value: string | number;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label htmlFor={testId} className="min-w-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      {label}
+      <select id={testId} data-testid={testId} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}
+        className="mt-1.5 w-full min-w-0 rounded border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium normal-case text-slate-800 disabled:bg-slate-100 disabled:text-slate-400">
+        {children}
+      </select>
+    </label>
+  );
+}
 
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                  currentPage === totalPages
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
-                  </div>
-
-            <div className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages} 
-              <span className="ml-2 text-gray-500">
-                (Showing {paginatedData.length} of {data.length} records)
-                      </span>
-                    </div>
-          </div>
-        )}
-      </div>
-    </div>
+function PageButton({
+  children,
+  active,
+  disabled,
+  onClick,
+}: {
+  children: ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" disabled={disabled} onClick={onClick}
+      className={`rounded px-3 py-2 text-sm font-medium ${
+        active ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-50'
+      } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400`}>
+      {children}
+    </button>
   );
 }

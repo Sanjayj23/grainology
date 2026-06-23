@@ -6,7 +6,7 @@ import { LayoutDashboard, LogOut, Users, Package, Truck, TrendingUp, Cloud, File
 // import { ClipboardCheck, Calculator, PackageCheck } from 'lucide-react';
 import EnhancedDashboard from './admin/EnhancedDashboard';
 import UserManagement from './admin/UserManagement';
-import MandiBhaav from './MandiBhaav';
+import { AgmarknetDashboard } from './agmarknet/AgmarknetDashboard';
 import CedaAgmarknetEmbed from './CedaAgmarknetEmbed';
 import WeatherForecast from './WeatherForecast';
 import LogisticsProviderManagement from './admin/LogisticsProviderManagement';
@@ -745,7 +745,7 @@ export default function AdminPanel({ profile, onSignOut, signingOut }: AdminPane
             <AllConfirmedOrders currentUserRole={profile.role} dataVersion={dataVersion} />
           )}
           {currentView === 'mandi' && (
-            <MandiBhaav />
+            <AgmarknetDashboard />
           )}
           {currentView === 'ceda-agmarknet' && (
             <CedaAgmarknetEmbed />

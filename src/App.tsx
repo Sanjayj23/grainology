@@ -12,6 +12,7 @@ import Contact from './pages/Contact';
 import CustomerPanel from './components/CustomerPanel';
 import AdminPanel from './components/AdminPanel';
 import KYCCallback from './pages/KYCCallback';
+import { AgmarknetDashboard } from './components/agmarknet/AgmarknetDashboard';
 import ScrollToTop from './components/ScrollToTop';
 import { ToastProvider } from './contexts/ToastContext';
 import { PopupProvider } from './contexts/PopupContext';
@@ -119,6 +120,15 @@ export default function App() {
               <Navigation />
               <Contact />
             </>
+          } />
+          <Route path="/mandi-bhaav" element={
+            <div className="min-h-screen bg-slate-50">
+              <Navigation />
+              <div className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
+                <AgmarknetDashboard />
+              </div>
+              <Footer />
+            </div>
           } />
           <Route path="/login" element={
             <AuthRoute>

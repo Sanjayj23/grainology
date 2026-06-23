@@ -1,6 +1,6 @@
 import { Profile, Order, Offer } from '../../lib/client';
 import { Package, ShoppingCart, AlertCircle } from 'lucide-react';
-import MandiBhaav from '../MandiBhaav';
+import { AgmarknetDashboard } from '../agmarknet/AgmarknetDashboard';
 import Weathersonu from '../weathersonu';
 
 interface DashboardProps {
@@ -95,7 +95,7 @@ export default function Dashboard({ profile, orders, offers }: DashboardProps) {
       </div>
 
       {/* Mandi Bhav Component with all filters */}
-      <MandiBhaav />
+      <AgmarknetDashboard />
 
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b border-gray-200">

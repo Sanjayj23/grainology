@@ -13,7 +13,7 @@ import {
   Truck,
   Users2
 } from 'lucide-react';
-import MandiBhaav from './MandiBhaav';
+import { AgmarknetDashboard } from './agmarknet/AgmarknetDashboard';
 import PlatformSnapshot from './PlatformSnapshot';
 import Weathersonu from './weathersonu';
 import { MandiCache } from '../lib/sessionStorage';
@@ -415,7 +415,7 @@ export default function LandingPage() {
         </div>
       </section>
       <div ref={mandiSectionRef}>
-        <MandiBhaav />
+        <AgmarknetDashboard />
       </div>
 
       <PlatformSnapshot />

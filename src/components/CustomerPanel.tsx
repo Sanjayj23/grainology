@@ -4,7 +4,7 @@ import { Profile, api, Offer, Order, QualityParameter } from '../lib/client';
 import { Home, PlusCircle, LogOut, Cloud, TrendingUp, ShoppingCart, Store, Menu, X, FileText, Truck } from 'lucide-react';
 import Dashboard from './customer/Dashboard';
 import CreateTrade from './customer/CreateTrade';
-import MandiBhaav from './MandiBhaav';
+import { AgmarknetDashboard } from './agmarknet/AgmarknetDashboard';
 import WeatherForecast from './WeatherForecast';
 import PurchaseOrderHistory from './customer/PurchaseOrderHistory';
 import SaleOrderHistory from './customer/SaleOrderHistory';
@@ -417,7 +417,7 @@ export default function CustomerPanel({ profile, onSignOut, signingOut }: Custom
             <ConfirmedOrders userId={profile.id} userName={profile.name || 'User'} />
           )}
           {currentView === 'mandi' && (
-            <MandiBhaav />
+            <AgmarknetDashboard />
           )}
           {currentView === 'weather' && (
             <WeatherForecast />
